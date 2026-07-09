@@ -1,4 +1,37 @@
 import './style.css';
+
+// roundRect landed in Safari 16 / Chrome 99; give older engines the same API
+// so the scene renderer and icons work everywhere.
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (
+    this: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radii?: number | DOMPointInit | (number | DOMPointInit)[]
+  ) {
+    const toN = (v: number | DOMPointInit | undefined): number =>
+      typeof v === 'number' ? v : v ? Number(v.x ?? 0) : 0;
+    let r: number[];
+    if (Array.isArray(radii)) r = radii.map(toN);
+    else r = [toN(radii ?? 0)];
+    const [tl, tr = tl, br = tl, bl = tr] = r;
+    const cl = (v: number) => Math.max(0, Math.min(v, Math.abs(w) / 2, Math.abs(h) / 2));
+    const [a, b, c, d] = [cl(tl), cl(tr), cl(br), cl(bl)];
+    this.moveTo(x + a, y);
+    this.lineTo(x + w - b, y);
+    this.arcTo(x + w, y, x + w, y + b, b);
+    this.lineTo(x + w, y + h - c);
+    this.arcTo(x + w, y + h, x + w - c, y + h, c);
+    this.lineTo(x + d, y + h);
+    this.arcTo(x, y + h, x, y + h - d, d);
+    this.lineTo(x, y + a);
+    this.arcTo(x, y, x + a, y, a);
+    this.closePath();
+    return this;
+  } as typeof CanvasRenderingContext2D.prototype.roundRect;
+}
 import { TREASURE_IDS } from './data/world';
 import { Game } from './engine/game';
 import { SceneRenderer } from './scenes/renderer';

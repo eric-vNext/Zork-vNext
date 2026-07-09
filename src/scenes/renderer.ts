@@ -87,9 +87,18 @@ export class SceneRenderer {
   start() {
     if (this.running) return;
     this.running = true;
+    let warned = false;
     const loop = () => {
       if (!this.running) return;
-      this.frame();
+      // a paint error in one scene must never kill the loop for the session
+      try {
+        this.frame();
+      } catch (err) {
+        if (!warned) {
+          warned = true;
+          console.error('scene paint error:', err);
+        }
+      }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
