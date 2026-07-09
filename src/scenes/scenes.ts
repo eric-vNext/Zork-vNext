@@ -2,10 +2,13 @@ import {
   type SceneCtx, type ParticleKind,
   sky, glow, ridge, treeBand, stalactites, stalagmites, stars, fog, lightShaft, lerp, mulberry32,
 } from './paint';
+import { hifiScenes } from './hifi';
 
 export interface ParticleSpec { kind: ParticleKind; count: number; hue?: string }
 export interface SceneDef {
   paint: (s: SceneCtx) => void;
+  /** optional static layer, painted once and cached by the renderer */
+  paintBase?: (s: SceneCtx) => void;
   particles?: ParticleSpec[];
 }
 
@@ -25,12 +28,6 @@ function goldenSky(s: SceneCtx) {
   glow(s, s.w * 0.78, s.h * 0.72, s.w * 0.1, 'rgba(255,236,190,0.9)');
 }
 
-function meadowGround(s: SceneCtx, seed: number) {
-  ridge(s, s.h * 0.8, 10, 0.4, '#2e2338', seed);
-  ridge(s, s.h * 0.88, 8, 0.5, '#241a2c', seed + 1);
-  sGrass(s, s.h * 0.86, '#1b1422', seed + 2);
-}
-
 function sGrass(s: SceneCtx, baseY: number, color: string, seed: number) {
   const { ctx, w } = s;
   const rnd = mulberry32(seed);
@@ -48,58 +45,6 @@ function sGrass(s: SceneCtx, baseY: number, color: string, seed: number) {
   }
 }
 
-function drawHouse(s: SceneCtx, cx: number, groundY: number, scale: number, showDoor: boolean, windowGlow: boolean) {
-  const { ctx } = s;
-  const hw = 150 * scale, hh = 100 * scale;
-  ctx.save();
-  // body
-  ctx.fillStyle = '#e8e0d0';
-  ctx.fillRect(cx - hw / 2, groundY - hh, hw, hh);
-  // shading side
-  ctx.fillStyle = 'rgba(120,90,110,0.35)';
-  ctx.fillRect(cx + hw * 0.1, groundY - hh, hw * 0.4, hh);
-  // roof
-  ctx.fillStyle = '#4a3644';
-  ctx.beginPath();
-  ctx.moveTo(cx - hw * 0.6, groundY - hh);
-  ctx.lineTo(cx, groundY - hh - 62 * scale);
-  ctx.lineTo(cx + hw * 0.6, groundY - hh);
-  ctx.closePath();
-  ctx.fill();
-  // chimney
-  ctx.fillStyle = '#5b4350';
-  ctx.fillRect(cx + hw * 0.22, groundY - hh - 52 * scale, 16 * scale, 34 * scale);
-  // boarded door
-  if (showDoor) {
-    ctx.fillStyle = '#6b5344';
-    ctx.fillRect(cx - 14 * scale, groundY - 44 * scale, 28 * scale, 44 * scale);
-    ctx.strokeStyle = '#3d2f26';
-    ctx.lineWidth = 3 * scale;
-    ctx.beginPath();
-    ctx.moveTo(cx - 14 * scale, groundY - 40 * scale);
-    ctx.lineTo(cx + 14 * scale, groundY - 14 * scale);
-    ctx.moveTo(cx + 14 * scale, groundY - 40 * scale);
-    ctx.lineTo(cx - 14 * scale, groundY - 14 * scale);
-    ctx.stroke();
-  }
-  // windows
-  ctx.fillStyle = windowGlow ? '#ffd98a' : '#2c2735';
-  const wy = groundY - hh * 0.62;
-  ctx.fillRect(cx - hw * 0.34, wy, 18 * scale, 22 * scale);
-  ctx.fillRect(cx + hw * 0.22, wy, 18 * scale, 22 * scale);
-  if (windowGlow) {
-    glow(s, cx - hw * 0.34 + 9 * scale, wy + 11 * scale, 40 * scale, 'rgba(255,200,120,0.5)');
-    glow(s, cx + hw * 0.22 + 9 * scale, wy + 11 * scale, 40 * scale, 'rgba(255,200,120,0.5)');
-  }
-  // board strokes on windows
-  if (!windowGlow) {
-    ctx.strokeStyle = '#4d4254';
-    ctx.lineWidth = 2 * scale;
-    ctx.strokeRect(cx - hw * 0.34, wy, 18 * scale, 22 * scale);
-    ctx.strokeRect(cx + hw * 0.22, wy, 18 * scale, 22 * scale);
-  }
-  ctx.restore();
-}
 
 interface CaveOpts {
   base?: string; mid?: string; near?: string;
@@ -126,51 +71,6 @@ function caveBase(s: SceneCtx, seed: number, o: CaveOpts = {}) {
 
 export const sceneDefs: Record<string, SceneDef> = {
   // ---------- surface
-  whiteHouse: {
-    particles: [
-      { kind: 'firefly', count: 14, hue: '#ffe9a3' },
-      { kind: 'leaf', count: 6, hue: '#caa46a' },
-    ],
-    paint(s) {
-      goldenSky(s);
-      ridge(s, s.h * 0.66, 26, 0.5, '#2a2742', 21);
-      treeBand(s, s.h * 0.74, s.h * 0.2, '#221d33', 22, 34);
-      meadowGround(s, 23);
-      drawHouse(s, s.w * 0.62, s.h * 0.82, Math.min(s.w, 640) / 460, true, false);
-      // mailbox
-      const mx = s.w * 0.24, my = s.h * 0.86;
-      s.ctx.fillStyle = '#3a3148';
-      s.ctx.fillRect(mx - 2, my - 26, 4, 26);
-      s.ctx.fillStyle = '#4d4260';
-      s.ctx.beginPath();
-      s.ctx.roundRect(mx - 12, my - 40, 24, 15, 6);
-      s.ctx.fill();
-      fog(s, s.h * 0.82, 40, 'rgba(255,190,120,0.5)', 0.16, 5, 3);
-    },
-  },
-
-  houseSide: {
-    particles: [{ kind: 'firefly', count: 10, hue: '#ffe9a3' }],
-    paint(s) {
-      goldenSky(s);
-      treeBand(s, s.h * 0.7, s.h * 0.24, '#221d33', 31, 30);
-      meadowGround(s, 32);
-      drawHouse(s, s.w * 0.3, s.h * 0.84, Math.min(s.w, 640) / 420, false, false);
-      fog(s, s.h * 0.84, 36, 'rgba(255,190,120,0.4)', 0.14, 5, 4);
-    },
-  },
-
-  behindHouse: {
-    particles: [{ kind: 'firefly', count: 10, hue: '#ffe9a3' }],
-    paint(s) {
-      goldenSky(s);
-      treeBand(s, s.h * 0.68, s.h * 0.26, '#221d33', 41, 28);
-      meadowGround(s, 42);
-      drawHouse(s, s.w * 0.34, s.h * 0.84, Math.min(s.w, 640) / 420, false, s.flags['windowOpen'] ?? false);
-      fog(s, s.h * 0.85, 36, 'rgba(255,190,120,0.4)', 0.14, 5, 5);
-    },
-  },
-
   forest: {
     particles: [
       { kind: 'firefly', count: 18, hue: '#d9f0a3' },
@@ -403,119 +303,6 @@ export const sceneDefs: Record<string, SceneDef> = {
   },
 
   // ---------- interiors
-  kitchen: {
-    particles: [{ kind: 'dust', count: 18, hue: '#ffe6b8' }],
-    paint(s) {
-      sky(s, [
-        [0, '#1e1626'],
-        [0.6, '#2c1f2e'],
-        [1, '#3a2a33'],
-      ]);
-      const { ctx } = s;
-      // window with evening light
-      const wx = s.w * 0.72, wy = s.h * 0.34;
-      lightShaft(s, wx, 90, wx - 120, 300, s.h, 'rgba(255,205,130,0.16)', 1);
-      ctx.fillStyle = '#efc27a';
-      ctx.beginPath();
-      ctx.roundRect(wx - 55, wy - 75, 110, 150, 8);
-      ctx.fill();
-      glow(s, wx, wy, 160, 'rgba(255,200,120,0.45)');
-      ctx.strokeStyle = '#241a24';
-      ctx.lineWidth = 8;
-      ctx.beginPath();
-      ctx.moveTo(wx, wy - 75); ctx.lineTo(wx, wy + 75);
-      ctx.moveTo(wx - 55, wy); ctx.lineTo(wx + 55, wy);
-      ctx.stroke();
-      // table
-      ctx.fillStyle = '#171019';
-      ctx.fillRect(s.w * 0.12, s.h * 0.72, s.w * 0.4, 12);
-      ctx.fillRect(s.w * 0.15, s.h * 0.72, 12, s.h * 0.2);
-      ctx.fillRect(s.w * 0.45, s.h * 0.72, 12, s.h * 0.2);
-      // sack + bottle silhouettes
-      ctx.fillStyle = '#241a20';
-      ctx.beginPath();
-      ctx.ellipse(s.w * 0.26, s.h * 0.69, 26, 20, 0, Math.PI, 0);
-      ctx.fill();
-      ctx.fillRect(s.w * 0.37, s.h * 0.62, 12, 34);
-      glow(s, s.w * 0.37 + 6, s.h * 0.66, 20, 'rgba(160,220,255,0.3)');
-      // hanging pans
-      ctx.strokeStyle = '#0f0a12';
-      ctx.lineWidth = 3;
-      for (let i = 0; i < 3; i++) {
-        const px = s.w * (0.15 + i * 0.09);
-        ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, s.h * 0.12 + i * 8); ctx.stroke();
-        ctx.beginPath(); ctx.arc(px, s.h * 0.15 + i * 8, 12, 0, Math.PI * 2); ctx.stroke();
-      }
-    },
-  },
-
-  livingRoom: {
-    particles: [
-      { kind: 'ember', count: 10, hue: '#ffb46a' },
-      { kind: 'dust', count: 14, hue: '#ffe6b8' },
-    ],
-    paint(s) {
-      sky(s, [
-        [0, '#150f1c'],
-        [0.6, '#241723'],
-        [1, '#33202a'],
-      ]);
-      const { ctx } = s;
-      // fireplace
-      const fx = s.w * 0.18, fy = s.h * 0.66;
-      ctx.fillStyle = '#0d0810';
-      ctx.fillRect(fx - 70, fy - 90, 140, 90);
-      ctx.fillStyle = '#1f1218';
-      ctx.fillRect(fx - 55, fy - 75, 110, 75);
-      glow(s, fx, fy - 26, 90, 'rgba(255,150,60,0.75)');
-      glow(s, fx, fy - 20, 40, 'rgba(255,220,140,0.9)');
-      // flame flicker
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 5; i++) {
-        const flick = Math.sin(s.t * 7 + i * 2.2) * 6;
-        ctx.fillStyle = 'rgba(255,170,70,0.5)';
-        ctx.beginPath();
-        ctx.ellipse(fx - 20 + i * 10, fy - 14, 6, 16 + flick, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-      // sword on the wall
-      const sx = s.w * 0.5, sy = s.h * 0.26;
-      ctx.save();
-      ctx.translate(sx, sy);
-      ctx.rotate(-0.15);
-      ctx.fillStyle = '#9fb2c8';
-      ctx.fillRect(-70, -3, 140, 6);
-      ctx.fillStyle = '#5d4a63';
-      ctx.fillRect(48, -9, 10, 18);
-      ctx.restore();
-      glow(s, sx, sy, 60, 'rgba(160,200,255,0.14)');
-      // trophy case
-      ctx.fillStyle = '#241a2c';
-      ctx.fillRect(s.w * 0.72, s.h * 0.3, s.w * 0.18, s.h * 0.5);
-      ctx.strokeStyle = 'rgba(255,210,130,0.5)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(s.w * 0.735, s.h * 0.32, s.w * 0.15, s.h * 0.46);
-      glow(s, s.w * 0.81, s.h * 0.55, 70, 'rgba(255,210,120,0.12)');
-      // rug or trap door
-      if (s.flags['trapDoorOpen']) {
-        ctx.fillStyle = '#050308';
-        ctx.beginPath();
-        ctx.ellipse(s.w * 0.45, s.h * 0.88, 80, 24, 0, 0, Math.PI * 2);
-        ctx.fill();
-        glow(s, s.w * 0.45, s.h * 0.88, 60, 'rgba(90,220,160,0.15)');
-      } else {
-        ctx.fillStyle = '#5c2f3a';
-        ctx.beginPath();
-        ctx.ellipse(s.w * 0.45, s.h * 0.88, 100, 28, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#7c4a50';
-        ctx.stroke();
-      }
-    },
-  },
-
   attic: {
     particles: [{ kind: 'dust', count: 26, hue: '#cbb89a' }],
     paint(s) {
@@ -1418,3 +1205,6 @@ export const sceneDefs: Record<string, SceneDef> = {
     },
   },
 };
+
+// the high-fidelity set overrides/extends the registry
+Object.assign(sceneDefs, hifiScenes);

@@ -279,3 +279,224 @@ export function filmGrain(s: SceneCtx, alpha = 0.05) {
   for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
   ctx.restore();
 }
+
+// ---------------------------------------------------------------------------
+// High-fidelity material & lighting primitives
+// ---------------------------------------------------------------------------
+
+export function hexRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** shift a hex color toward white (k>0) or black (k<0) */
+export function shade(hex: string, k: number): string {
+  const [r, g, b] = hexRgb(hex);
+  const f = (c: number) => {
+    const v = k >= 0 ? c + (255 - c) * k : c * (1 + k);
+    return Math.max(0, Math.min(255, Math.round(v)));
+  };
+  return `rgb(${f(r)},${f(g)},${f(b)})`;
+}
+
+/** layered-sine firelight signal, ~0.45..1.0 */
+export function flicker(t: number, seed = 0): number {
+  return (
+    0.72 +
+    0.28 *
+      (0.55 * Math.sin(t * 7.3 + seed) +
+        0.3 * Math.sin(t * 13.7 + seed * 1.7) +
+        0.15 * Math.sin(t * 23.1 + seed * 2.3))
+  );
+}
+
+/** layered animated fire: outer lick, mid body, bright core (additive) */
+export function flames(s: SceneCtx, x: number, baseY: number, size: number, seed = 0, intensity = 1) {
+  const { ctx } = s;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const layers: [string, number, number][] = [
+    ['rgba(255, 80, 25, 0.30)', 1.35, 0.9],
+    ['rgba(255, 145, 45, 0.5)', 1.0, 1.0],
+    ['rgba(255, 225, 150, 0.85)', 0.55, 1.15],
+  ];
+  const tongues = 3;
+  for (const [color, scale, speed] of layers) {
+    ctx.fillStyle = color;
+    for (let i = 0; i < tongues; i++) {
+      const off = (i - (tongues - 1) / 2) * size * 0.42;
+      const fl = flicker(s.t * speed, seed + i * 2.1);
+      const hgt = size * scale * (0.7 + 0.5 * fl) * intensity;
+      const wd = size * scale * 0.44 * (0.85 + 0.3 * Math.sin(s.t * 5.1 + i + seed));
+      const sway = Math.sin(s.t * (2.6 + i * 0.9) + seed * 3 + i * 2) * size * 0.16;
+      const bx = x + off;
+      ctx.beginPath();
+      ctx.moveTo(bx - wd / 2, baseY);
+      ctx.bezierCurveTo(bx - wd / 2, baseY - hgt * 0.45, bx + sway * 0.4, baseY - hgt * 0.6, bx + sway, baseY - hgt);
+      ctx.bezierCurveTo(bx + sway * 0.5 + wd / 2, baseY - hgt * 0.55, bx + wd / 2, baseY - hgt * 0.35, bx + wd / 2, baseY);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/** longitudinal wood-grain streaks over an area (call after the base fill) */
+export function grain(s: SceneCtx, x: number, y: number, w: number, h: number, seed: number, vertical = false, strength = 0.1) {
+  const { ctx } = s;
+  const rnd = mulberry32(seed);
+  const len = vertical ? h : w;
+  const across = vertical ? w : h;
+  const lines = Math.max(3, Math.round(across / 5));
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  for (let i = 0; i < lines; i++) {
+    const a = (i + 0.5) / lines;
+    const dark = rnd() > 0.5;
+    ctx.strokeStyle = dark ? `rgba(20,10,8,${strength * (0.5 + rnd() * 0.8)})` : `rgba(255,235,200,${strength * 0.5 * rnd()})`;
+    ctx.lineWidth = 0.7 + rnd() * 1.1;
+    ctx.beginPath();
+    const wob = 1.5 + rnd() * 3;
+    const ph = rnd() * 10;
+    for (let d = 0; d <= len; d += 7) {
+      const cross = a * across + Math.sin(d * 0.04 + ph) * wob;
+      const px = vertical ? x + cross : x + d;
+      const py = vertical ? y + d : y + cross;
+      if (d === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    if (rnd() > 0.86) {
+      // a knot
+      const kx = x + rnd() * w;
+      const ky = y + rnd() * h;
+      ctx.strokeStyle = `rgba(25,12,8,${strength * 1.4})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(kx, ky, 2.5 + rnd() * 2, 1.5 + rnd(), rnd(), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+/** horizontal clapboard siding with per-board tint jitter and lap shadows */
+export function clapboards(s: SceneCtx, x: number, y: number, w: number, h: number, leftColor: string, rightColor: string, seed: number, boardH = 6) {
+  const { ctx } = s;
+  const rnd = mulberry32(seed);
+  const g = ctx.createLinearGradient(x, 0, x + w, 0);
+  g.addColorStop(0, leftColor);
+  g.addColorStop(1, rightColor);
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+  for (let by = y; by < y + h; by += boardH) {
+    const jitter = (rnd() - 0.5) * 0.08;
+    ctx.fillStyle = jitter > 0 ? `rgba(255,245,225,${jitter})` : `rgba(40,25,40,${-jitter})`;
+    ctx.fillRect(x, by, w, Math.min(boardH, y + h - by));
+    ctx.fillStyle = 'rgba(45,28,45,0.35)';
+    ctx.fillRect(x, by + boardH - 1, w, 1);
+  }
+}
+
+/** shingled roof: clip to polygon, lay staggered courses */
+export function shingles(s: SceneCtx, pts: [number, number][], base: string, seed: number, courseH = 7) {
+  const { ctx } = s;
+  const rnd = mulberry32(seed);
+  const ys = pts.map((p) => p[1]);
+  const xs = pts.map((p) => p[0]);
+  const top = Math.min(...ys);
+  const bot = Math.max(...ys);
+  const left = Math.min(...xs);
+  const right = Math.max(...xs);
+  ctx.save();
+  ctx.beginPath();
+  pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])));
+  ctx.closePath();
+  ctx.clip();
+  const g = ctx.createLinearGradient(0, top, 0, bot);
+  g.addColorStop(0, shade(base, 0.25));
+  g.addColorStop(1, shade(base, -0.35));
+  ctx.fillStyle = g;
+  ctx.fillRect(left, top, right - left, bot - top);
+  let row = 0;
+  for (let yy = top; yy < bot; yy += courseH, row++) {
+    ctx.fillStyle = 'rgba(10,6,12,0.45)';
+    ctx.fillRect(left, yy + courseH - 1.2, right - left, 1.2);
+    ctx.fillStyle = `rgba(255,235,210,${0.04 + rnd() * 0.04})`;
+    ctx.fillRect(left, yy, right - left, 1);
+    // shingle joints, staggered per course
+    ctx.fillStyle = 'rgba(10,6,12,0.3)';
+    const off = (row % 2) * 5 + rnd() * 2;
+    for (let xx = left + off; xx < right; xx += 10) {
+      ctx.fillRect(xx, yy, 1, courseH - 1);
+    }
+  }
+  ctx.restore();
+}
+
+/** running-bond brickwork */
+export function bricks(s: SceneCtx, x: number, y: number, w: number, h: number, base: string, seed: number, bw = 11, bh = 5.5) {
+  const { ctx } = s;
+  const rnd = mulberry32(seed);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.fillStyle = shade(base, -0.55); // mortar
+  ctx.fillRect(x, y, w, h);
+  let row = 0;
+  for (let yy = y; yy < y + h; yy += bh + 1, row++) {
+    const off = (row % 2) * (bw / 2);
+    for (let xx = x - bw + off; xx < x + w; xx += bw + 1) {
+      const j = (rnd() - 0.5) * 0.24;
+      ctx.fillStyle = shade(base, j);
+      ctx.fillRect(xx, yy, bw, bh);
+    }
+  }
+  ctx.restore();
+}
+
+/** weathered planks nailed across an opening */
+export function boardedPlanks(s: SceneCtx, x: number, y: number, w: number, h: number, color: string, seed: number) {
+  const { ctx } = s;
+  const rnd = mulberry32(seed);
+  const plank = (x1: number, y1: number, x2: number, y2: number, pw: number) => {
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.rotate(ang);
+    ctx.fillStyle = shade(color, (rnd() - 0.5) * 0.2);
+    ctx.fillRect(-2, -pw / 2, len + 4, pw);
+    ctx.fillStyle = 'rgba(20,12,8,0.35)';
+    ctx.fillRect(-2, pw / 2 - 1.5, len + 4, 1.5);
+    // nail heads
+    ctx.fillStyle = 'rgba(15,10,10,0.8)';
+    for (const nx of [4, len - 4]) {
+      ctx.beginPath();
+      ctx.arc(nx, 0, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  };
+  plank(x - 2, y + h * 0.28, x + w + 2, y + h * 0.16, h * 0.16);
+  plank(x - 2, y + h * 0.6, x + w + 2, y + h * 0.72, h * 0.16);
+  plank(x + w * 0.15, y - 2, x + w * 0.85, y + h + 2, w * 0.2);
+}
+
+/** soft elliptical contact shadow */
+export function softShadow(s: SceneCtx, x: number, y: number, rx: number, ry: number, alpha = 0.4) {
+  const { ctx } = s;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, rx);
+  g.addColorStop(0, `rgba(5,2,8,${alpha})`);
+  g.addColorStop(1, 'rgba(5,2,8,0)');
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(1, ry / rx);
+  ctx.translate(-x, -y);
+  ctx.fillStyle = g;
+  ctx.fillRect(x - rx, y - rx, rx * 2, rx * 2);
+  ctx.restore();
+}

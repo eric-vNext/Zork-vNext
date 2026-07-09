@@ -1,4 +1,5 @@
 import './style.css';
+import { TREASURE_IDS } from './data/world';
 import { Game } from './engine/game';
 import { SceneRenderer } from './scenes/renderer';
 import { SoundEngine } from './audio/sound';
@@ -94,6 +95,8 @@ function sceneFlags(): Record<string, boolean> {
   return {
     windowOpen: !!f['windowOpen'],
     trapDoorOpen: !!f['trapDoorOpen'],
+    rugMoved: !!f['rugMoved'],
+    caseGlow: TREASURE_IDS.some((id) => game.state.loc[id] === 'inside:trophyCase'),
     rainbowSolid: !!f['rainbowSolid'],
     ropeTied: !!f['ropeTied'],
     echoSolved: !!f['echoSolved'],

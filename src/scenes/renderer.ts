@@ -18,6 +18,9 @@ export class SceneRenderer {
   private lastFrame = performance.now();
   private running = false;
   private dpr = 1;
+  /** cached static layer for scenes that split base/dynamic painting */
+  private baseCache: HTMLCanvasElement | null = null;
+  private baseKey = '';
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -114,6 +117,32 @@ export class SceneRenderer {
       rng: mulberry32(hashSeed(this.sceneId)),
       flags: this.flags,
     };
+
+    // static layer: painted once per (scene, size, flags) and blitted each frame
+    if (def.paintBase) {
+      const key = `${this.sceneId}|${this.canvas.width}x${this.canvas.height}|${JSON.stringify(this.flags)}`;
+      if (key !== this.baseKey || !this.baseCache) {
+        const off = document.createElement('canvas');
+        off.width = this.canvas.width;
+        off.height = this.canvas.height;
+        const octx = off.getContext('2d')!;
+        octx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+        def.paintBase({
+          ctx: octx,
+          w: this.width,
+          h: this.height,
+          t: 0,
+          rng: mulberry32(hashSeed(this.sceneId)),
+          flags: this.flags,
+        });
+        this.baseCache = off;
+        this.baseKey = key;
+      }
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(this.baseCache, 0, 0);
+      ctx.restore();
+    }
 
     def.paint(s);
     drawParticles(s, this.particles, dt);
