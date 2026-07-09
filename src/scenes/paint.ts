@@ -270,38 +270,54 @@ export function drawParticles(s: SceneCtx, ps: Particle[], dt: number) {
   ctx.restore();
 }
 
-let noiseTile: HTMLCanvasElement | null = null;
+let noisePattern: CanvasPattern | null | undefined;
+let scanlinePattern: CanvasPattern | null | undefined;
 
-/** subtle film grain + scanlines + dither noise (breaks up gradient banding) */
+/**
+ * subtle film grain + scanlines + dither noise (breaks up gradient banding).
+ * Built once as tileable CanvasPatterns and painted with two fillRect calls
+ * total, rather than the dozens-to-hundreds of drawImage/fillRect calls a
+ * naive per-tile/per-scanline loop would cost every single frame.
+ */
 export function filmGrain(s: SceneCtx, alpha = 0.05) {
   const { ctx, w, h } = s;
-  ctx.save();
-  // dither: a tiled static noise layer at very low alpha
-  if (!noiseTile) {
-    noiseTile = document.createElement('canvas');
-    noiseTile.width = 128;
-    noiseTile.height = 128;
-    const nctx = noiseTile.getContext('2d')!;
-    const img = nctx.createImageData(128, 128);
+  if (noisePattern === undefined) {
+    const tile = document.createElement('canvas');
+    tile.width = 128;
+    tile.height = 128;
+    const tctx = tile.getContext('2d')!;
+    const img = tctx.createImageData(128, 128);
     const rnd = mulberry32(0xd17e5);
     for (let i = 0; i < img.data.length; i += 4) {
       const v = Math.floor(rnd() * 255);
       img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
       img.data[i + 3] = 255;
     }
-    nctx.putImageData(img, 0, 0);
+    tctx.putImageData(img, 0, 0);
+    noisePattern = ctx.createPattern(tile, 'repeat');
   }
-  ctx.globalAlpha = 0.022;
-  ctx.globalCompositeOperation = 'overlay';
-  for (let ty = 0; ty < h; ty += 128) {
-    for (let tx = 0; tx < w; tx += 128) {
-      ctx.drawImage(noiseTile, tx, ty);
-    }
+  if (scanlinePattern === undefined) {
+    const tile = document.createElement('canvas');
+    tile.width = 1;
+    tile.height = 3;
+    const tctx = tile.getContext('2d')!;
+    tctx.fillStyle = '#000';
+    tctx.fillRect(0, 0, 1, 1);
+    scanlinePattern = ctx.createPattern(tile, 'repeat');
   }
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = '#000';
-  for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
+  ctx.save();
+  if (noisePattern) {
+    ctx.globalAlpha = 0.022;
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = noisePattern;
+    ctx.fillRect(0, 0, w, h);
+  }
+  if (scanlinePattern) {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = scanlinePattern;
+    ctx.fillRect(0, 0, w, h);
+  }
   ctx.restore();
 }
 

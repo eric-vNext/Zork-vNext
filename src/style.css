@@ -76,14 +76,35 @@ html, body {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding: calc(6px + var(--sat)) 14px 6px;
+  padding: calc(6px + var(--sat)) 16px 7px;
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--amber-soft);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-  background: linear-gradient(to bottom, rgba(5, 7, 11, 0.55), transparent);
+  background:
+    linear-gradient(to bottom, rgba(5, 7, 11, 0.6) 0%, rgba(5, 7, 11, 0.38) 70%, transparent 100%);
+  border-bottom: 1px solid rgba(255, 190, 110, 0.14);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
   user-select: none;
+}
+
+/* a hairline brass rule along the very top edge, like the fitted lip of a plate */
+#statusbar::before {
+  content: '';
+  position: absolute;
+  top: var(--sat);
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 196, 120, 0.45) 18%,
+    rgba(255, 210, 150, 0.7) 50%,
+    rgba(255, 196, 120, 0.45) 82%,
+    transparent 100%
+  );
 }
 
 #status-right {
@@ -94,22 +115,30 @@ html, body {
 
 #status-score::before { content: '✦ '; opacity: 0.7; }
 #status-moves::after { content: ' mv'; opacity: 0.55; font-size: 9px; }
-.status-sep { opacity: 0.4; }
+.status-sep {
+  opacity: 0.5;
+  color: var(--amber);
+}
 
 #sound-toggle {
   appearance: none;
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 190, 110, 0.3);
+  background: linear-gradient(160deg, rgba(255, 180, 84, 0.16), rgba(0, 0, 0, 0.3));
   color: var(--amber-soft);
-  border-radius: 8px;
+  border-radius: 7px;
   width: 30px;
   height: 26px;
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
-  transition: opacity 0.2s;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 170, 0.25), inset 0 -1px 2px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.2s, box-shadow 0.2s;
 }
-#sound-toggle.muted { opacity: 0.4; text-decoration: line-through; }
+#sound-toggle.muted {
+  opacity: 0.4;
+  text-decoration: line-through;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
 
 #room-title-card {
   position: absolute;
@@ -127,16 +156,35 @@ html, body {
   font-size: clamp(20px, 5.5vw, 34px);
   letter-spacing: 0.02em;
   color: #f4ead5;
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85), 0 0 40px rgba(255, 180, 84, 0.25);
+  /* carved-into-stone bevel: a light catch above, a dark cut below, plus the amber glow */
+  text-shadow:
+    0 -1px 0 rgba(255, 235, 205, 0.22),
+    0 1.5px 0 rgba(0, 0, 0, 0.55),
+    0 2px 14px rgba(0, 0, 0, 0.85),
+    0 0 40px rgba(255, 180, 84, 0.25);
 }
 
 #room-subtitle {
-  margin-top: 2px;
+  position: relative;
+  margin-top: 5px;
+  padding-top: 6px;
   font-size: 10.5px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: rgba(255, 217, 160, 0.75);
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+}
+
+/* a short engraved rule above the region name, like a plaque's dividing line */
+#room-subtitle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 46px;
+  height: 1px;
+  background: linear-gradient(to right, rgba(255, 200, 130, 0.75), rgba(255, 200, 130, 0));
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
 }
 
 /* ---------- Console (bottom 1/3) ---------- */
@@ -303,4 +351,16 @@ html, body {
   border-radius: 10px;
   border: 1px solid rgba(255, 180, 84, 0.2);
   background: rgba(255, 180, 84, 0.06);
+}
+
+/* ---------- reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  #room-title-card,
+  #sound-toggle,
+  .chip,
+  #cmd,
+  #send {
+    transition: none !important;
+  }
 }

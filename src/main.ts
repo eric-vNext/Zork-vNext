@@ -158,11 +158,11 @@ const DEATH_SCENES: Record<string, string> = {
   drowning: 'deathDrowning',
 };
 
-function syncScene(roomChanged: boolean) {
+function syncScene(roomChanged: boolean, transitionColor?: string) {
   const lit = game.isLit();
   const victorious = game.state.won && game.state.room === 'livingRoom';
   const sceneId = game.state.dead ? deathScene : victorious ? 'victory' : lit ? game.room.scene : 'darkness';
-  renderer.setScene(sceneId, sceneFlags());
+  renderer.setScene(sceneId, sceneFlags(), transitionColor);
   renderer.updateFlags(sceneFlags());
   sound.setAmbience(game.state.dead ? 'maze' : game.room.ambience);
 
@@ -249,6 +249,21 @@ function triggerImpacts(sfx: SfxName[]) {
   }
 }
 
+/** narratively loaded scene changes get a flash-cut instead of a plain dissolve */
+function narrativeTransitionColor(before: string, fx: ReturnType<typeof game.execute>): string | undefined {
+  if (
+    game.state.room === 'cellar' &&
+    before === 'livingRoom' &&
+    fx.lines.some((l) => l.text.startsWith('The trap door crashes shut'))
+  ) {
+    return 'rgba(6,4,3,0.92)';
+  }
+  if (before === 'altar' && game.state.room === 'forestW') {
+    return 'rgba(255,228,175,0.85)';
+  }
+  return undefined;
+}
+
 function submit(raw: string) {
   const text = raw.trim();
   if (!text) return;
@@ -265,7 +280,7 @@ function submit(raw: string) {
   if (/^(i|inv|inventory)$/i.test(text) && !game.state.dead) {
     showInventoryIcons();
   }
-  syncScene(game.state.room !== before || fx.moved || fx.died);
+  syncScene(game.state.room !== before || fx.moved || fx.died, narrativeTransitionColor(before, fx));
   refreshChips();
 }
 

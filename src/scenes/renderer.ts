@@ -24,6 +24,11 @@ export class SceneRenderer {
   /** one-shot combat/event feedback: a brief screen shake and/or color flash */
   private shake: { start: number; duration: number; amount: number; angle: number } | null = null;
   private flash: { start: number; duration: number; color: string } | null = null;
+  /** color for the current scene transition's flash-cut, if it's a narrative beat rather than routine movement */
+  private fadeColor: string | null = null;
+  /** shake is the one vestibular-triggering effect here — respect the OS preference */
+  private reducedMotion =
+    typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -53,7 +58,12 @@ export class SceneRenderer {
     return this.canvas.height / this.dpr;
   }
 
-  setScene(id: string, flags: Record<string, boolean | string>) {
+  /**
+   * @param transitionColor for narratively loaded transitions (a trap door
+   * slamming shut, a prayer answered) — a brief color flash layered over the
+   * usual dissolve, instead of a plain fade for routine movement.
+   */
+  setScene(id: string, flags: Record<string, boolean | string>, transitionColor?: string) {
     const changed = id !== this.sceneId;
     this.flags = flags;
     if (!changed) return;
@@ -65,8 +75,10 @@ export class SceneRenderer {
       snap.getContext('2d')!.drawImage(this.canvas, 0, 0);
       this.snapshot = snap;
       this.fadeStart = performance.now();
+      this.fadeColor = transitionColor ?? null;
     } catch {
       this.snapshot = null;
+      this.fadeColor = null;
     }
     this.sceneId = id;
     this.sceneStart = performance.now();
@@ -79,6 +91,7 @@ export class SceneRenderer {
 
   /** brief directional screen shake in CSS pixels, e.g. for a landed blow */
   triggerShake(amount: number, duration = 200) {
+    if (this.reducedMotion) return; // vestibular trigger — skip entirely rather than dampen
     this.shake = { start: performance.now(), duration, amount, angle: Math.random() * Math.PI * 2 };
   }
 
@@ -204,8 +217,18 @@ export class SceneRenderer {
       ctx.globalAlpha = 1 - easeInOut(Math.min(1, fadeT));
       ctx.drawImage(this.snapshot, 0, 0);
       ctx.restore();
+      // narrative beat: a color flash-cut layered over the dissolve, peaking mid-transition
+      if (this.fadeColor) {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = Math.sin(Math.min(1, fadeT) * Math.PI) * 0.75;
+        ctx.fillStyle = this.fadeColor;
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.restore();
+      }
     } else if (this.snapshot && fadeT >= 1) {
       this.snapshot = null;
+      this.fadeColor = null;
     }
 
     // one-shot color flash, drawn last and unaffected by shake
