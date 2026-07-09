@@ -284,3 +284,23 @@ html, body {
   /* phones in landscape: shrink the scene, keep play area usable */
   #scene-wrap { flex: 0 0 42%; }
 }
+
+/* ---------- inventory icon strip ---------- */
+
+.icon-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 12px;
+}
+
+.icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 180, 84, 0.2);
+  background: rgba(255, 180, 84, 0.06);
+}

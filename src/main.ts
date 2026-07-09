@@ -3,6 +3,7 @@ import { TREASURE_IDS } from './data/world';
 import { Game } from './engine/game';
 import { SceneRenderer } from './scenes/renderer';
 import { SoundEngine } from './audio/sound';
+import { iconFor } from './scenes/icons';
 import type { OutputLine } from './engine/types';
 
 const game = new Game();
@@ -90,13 +91,14 @@ function trimTranscript() {
 
 // ---------------------------------------------------------------- scene sync
 
-function sceneFlags(): Record<string, boolean> {
+function sceneFlags(): Record<string, boolean | string> {
   const f = game.state.flags;
   return {
     windowOpen: !!f['windowOpen'],
     trapDoorOpen: !!f['trapDoorOpen'],
     rugMoved: !!f['rugMoved'],
     caseGlow: TREASURE_IDS.some((id) => game.state.loc[id] === 'inside:trophyCase'),
+    caseItems: TREASURE_IDS.filter((id) => game.state.loc[id] === 'inside:trophyCase').join(','),
     rainbowSolid: !!f['rainbowSolid'],
     ropeTied: !!f['ropeTied'],
     echoSolved: !!f['echoSolved'],
@@ -185,8 +187,27 @@ function submit(raw: string) {
   const fx = game.execute(text);
   for (const line of fx.lines) print(line);
   for (const s of fx.sfx) sound.play(s);
+  if (/^(i|inv|inventory)$/i.test(text) && !game.state.dead) {
+    showInventoryIcons();
+  }
   syncScene(game.state.room !== before || fx.moved || fx.died);
   refreshChips();
+}
+
+function showInventoryIcons() {
+  const items = game.carried();
+  if (items.length === 0) return;
+  const row = document.createElement('div');
+  row.className = 'icon-row';
+  for (const o of items) {
+    const chip = document.createElement('span');
+    chip.className = 'icon-chip';
+    chip.title = o.name;
+    chip.appendChild(iconFor(o.id, 40));
+    row.appendChild(chip);
+  }
+  transcript.appendChild(row);
+  scrollDown();
 }
 
 form.addEventListener('submit', (e) => {

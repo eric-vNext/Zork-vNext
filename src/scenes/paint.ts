@@ -8,7 +8,7 @@ export interface SceneCtx {
   t: number;
   /** deterministic per-scene random stream — call rng() for 0..1 */
   rng: () => number;
-  flags: Record<string, boolean>;
+  flags: Record<string, boolean | string>;
 }
 
 export function hashSeed(str: string): number {
@@ -270,10 +270,35 @@ export function drawParticles(s: SceneCtx, ps: Particle[], dt: number) {
   ctx.restore();
 }
 
-/** subtle film grain + scanline character, applied last */
+let noiseTile: HTMLCanvasElement | null = null;
+
+/** subtle film grain + scanlines + dither noise (breaks up gradient banding) */
 export function filmGrain(s: SceneCtx, alpha = 0.05) {
   const { ctx, w, h } = s;
   ctx.save();
+  // dither: a tiled static noise layer at very low alpha
+  if (!noiseTile) {
+    noiseTile = document.createElement('canvas');
+    noiseTile.width = 128;
+    noiseTile.height = 128;
+    const nctx = noiseTile.getContext('2d')!;
+    const img = nctx.createImageData(128, 128);
+    const rnd = mulberry32(0xd17e5);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.floor(rnd() * 255);
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+      img.data[i + 3] = 255;
+    }
+    nctx.putImageData(img, 0, 0);
+  }
+  ctx.globalAlpha = 0.022;
+  ctx.globalCompositeOperation = 'overlay';
+  for (let ty = 0; ty < h; ty += 128) {
+    for (let tx = 0; tx < w; tx += 128) {
+      ctx.drawImage(noiseTile, tx, ty);
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = alpha;
   ctx.fillStyle = '#000';
   for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);

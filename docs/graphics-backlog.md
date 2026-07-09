@@ -84,14 +84,18 @@ Kept as an index only; full detail (current state / target / files) for
 every item below is in this doc's git history (`git log -p -- docs/graphics-backlog.md`) from before this pilot scope-down, or ask Claude Code
 to regenerate detail for any item on request.
 
-**P0 remaining**: Cyclops (creature + room), Dome/Torch Room scale, item
-icon system for inventory + trophy case, shared water primitive, shared
-fire primitive.
+**P0 — ALL DONE** (this branch): White House/kitchen/living room,
+troll, cyclops (all states), treasure room + thief, Dome/Torch Room
+scale, item icon system (inventory strip + trophy case fill), shared
+water primitive (dam, reservoir, rainbow/falls, loud room, canyon
+bottom), shared fire primitive (living room, torch room, altar,
+treasure room sconces). Also done from P1: rainbow/falls upgrade, dam
+face + sluice drama, gradient banding dither, trophy case fill state,
+and a static-layer render cache (was P2 #23).
 
-**P1**: Thief character, skeleton legibility, Egyptian coffin, temple/
-altar stonework, rainbow/falls upgrade, dam face + sluice drama, cave
-rock-texture primitive (~20 scenes), gradient banding fix, trophy case
-fill state.
+**P1 remaining**: Skeleton legibility (maze3), Egyptian coffin, temple
+stonework, cave rock-texture applied to the generic caveBase scenes
+(cellar, chasm, gallery, studio, passage, round room, maze...).
 
 **P2**: Scene crossfade quality, combat impact effects, victory sequence,
 death variants by cause, grue glimpse treatment, mobile performance pass,

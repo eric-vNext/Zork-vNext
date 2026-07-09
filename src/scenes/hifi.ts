@@ -3,6 +3,7 @@
 // paint (animated layer drawn on top every frame).
 
 import type { SceneDef } from './scenes';
+import { iconFor } from './icons';
 import {
   type SceneCtx,
   boardedPlanks, bricks, clapboards, flames, flicker, fog, glow, grain,
@@ -481,7 +482,7 @@ const behindHouse: SceneDef = {
       gy: s.h * 0.825,
       k,
       view: 'back',
-      windowOpen: s.flags['windowOpen'],
+      windowOpen: s.flags['windowOpen'] === true,
     });
   },
   paint(s) {
@@ -1216,6 +1217,19 @@ const livingRoom: SceneDef = {
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(tc.x + 3, shy + 4, tc.w - 6, 3);
       ctx.fillStyle = '#33202a';
+    }
+    // the treasures already won, arranged on the shelves
+    const caseItems = String(s.flags['caseItems'] ?? '').split(',').filter(Boolean);
+    if (caseItems.length) {
+      const iconSz = tc.w * 0.21;
+      const rows = [tc.y + tc.h * 0.33, tc.y + tc.h * 0.66, tc.y + tc.h];
+      caseItems.forEach((id, i) => {
+        const row = Math.floor(i / 4);
+        const col = i % 4;
+        const ix = tc.x + 6 + col * (tc.w - 12 - iconSz) / 3;
+        const iy = (rows[Math.min(row, 2)] ?? tc.y + tc.h) - iconSz - 2;
+        ctx.drawImage(iconFor(id, Math.round(iconSz)), ix, iy, iconSz, iconSz);
+      });
     }
     // glass sheen
     ctx.save();

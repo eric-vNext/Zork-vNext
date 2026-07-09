@@ -10,7 +10,7 @@ export class SceneRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private sceneId = 'whiteHouse';
-  private flags: Record<string, boolean> = {};
+  private flags: Record<string, boolean | string> = {};
   private particles: Particle[] = [];
   private sceneStart = performance.now();
   private fadeStart = -Infinity;
@@ -50,7 +50,7 @@ export class SceneRenderer {
     return this.canvas.height / this.dpr;
   }
 
-  setScene(id: string, flags: Record<string, boolean>) {
+  setScene(id: string, flags: Record<string, boolean | string>) {
     const changed = id !== this.sceneId;
     this.flags = flags;
     if (!changed) return;
@@ -70,7 +70,7 @@ export class SceneRenderer {
     this.respawnParticles();
   }
 
-  updateFlags(flags: Record<string, boolean>) {
+  updateFlags(flags: Record<string, boolean | string>) {
     this.flags = flags;
   }
 
