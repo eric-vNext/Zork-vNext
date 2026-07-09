@@ -620,3 +620,41 @@ export function torrent(
   }
   ctx.restore();
 }
+
+/** faceted rock texture overlay: cheap flat-shaded facets + fine cracks */
+export function rockFacets(s: SceneCtx, seed: number, alpha = 1) {
+  const { ctx, w, h } = s;
+  const rnd = mulberry32(seed);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (let i = 0; i < 20; i++) {
+    const fx = rnd() * w;
+    const fy = rnd() * h * 0.85;
+    const fw = 26 + rnd() * 70;
+    const fh = 18 + rnd() * 48;
+    const tone = (rnd() - 0.5) * 0.16;
+    ctx.fillStyle = tone > 0 ? `rgba(215,200,225,${tone * 0.4})` : `rgba(4,2,8,${-tone * 1.3})`;
+    ctx.beginPath();
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx + fw * (0.65 + rnd() * 0.35), fy + fh * 0.22 * rnd());
+    ctx.lineTo(fx + fw, fy + fh);
+    ctx.lineTo(fx + fw * 0.22 * rnd(), fy + fh * (0.72 + rnd() * 0.28));
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  for (let i = 0; i < 8; i++) {
+    ctx.lineWidth = 0.7 + rnd() * 1.1;
+    let cx = rnd() * w;
+    let cy = rnd() * h * 0.55;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    for (let k = 0; k < 3; k++) {
+      cx += (rnd() - 0.5) * 40;
+      cy += 12 + rnd() * 26;
+      ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}

@@ -1,7 +1,7 @@
 import {
   type SceneCtx, type ParticleKind,
   sky, glow, ridge, treeBand, stalactites, stalagmites, stars, fog, lightShaft, lerp, mulberry32,
-  flames, flicker, torrent, waterPlane,
+  flames, flicker, torrent, waterPlane, rockFacets,
 } from './paint';
 import { hifiScenes } from './hifi';
 
@@ -60,6 +60,7 @@ function caveBase(s: SceneCtx, seed: number, o: CaveOpts = {}) {
     [0.55, o.mid ?? '#0c1220'],
     [1, o.near ?? '#141c2e'],
   ]);
+  rockFacets(s, seed + 7, 0.85);
   if (o.glowColor) {
     glow(s, o.glowX ?? s.w * 0.5, o.glowY ?? s.h * 0.6, o.glowR ?? s.w * 0.35, o.glowColor, 0.9);
   }
@@ -638,17 +639,61 @@ export const sceneDefs: Record<string, SceneDef> = {
       const { ctx } = s;
       lightShaft(s, s.w * 0.32, 60, s.w * 0.38, 180, s.h, 'rgba(230,200,140,0.1)', 1);
       lightShaft(s, s.w * 0.66, 50, s.w * 0.6, 150, s.h, 'rgba(230,200,140,0.08)', 1);
-      // marble pillars
+      // marble pillars: fluted shafts, capitals, base moldings
+      const prnd = mulberry32(292);
       for (let i = 0; i < 4; i++) {
         const x = s.w * (0.14 + i * 0.24);
+        const shaftTop = s.h * 0.14;
+        const shaftH = s.h * 0.72;
         const g = ctx.createLinearGradient(x - 26, 0, x + 26, 0);
         g.addColorStop(0, '#1c1626');
-        g.addColorStop(0.5, '#4a3f56');
+        g.addColorStop(0.45, '#5c4f68');
+        g.addColorStop(0.55, '#5c4f68');
         g.addColorStop(1, '#171220');
         ctx.fillStyle = g;
-        ctx.fillRect(x - 26, s.h * 0.14, 52, s.h * 0.72);
-        ctx.fillRect(x - 34, s.h * 0.1, 68, 16);
-        ctx.fillRect(x - 34, s.h * 0.84, 68, 14);
+        ctx.fillRect(x - 26, shaftTop, 52, shaftH);
+        // fluting: vertical grooves catching the torchlight unevenly
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x - 26, shaftTop, 52, shaftH);
+        ctx.clip();
+        for (let f = -22; f <= 22; f += 6.5) {
+          ctx.strokeStyle = f % 13 < 6.5 ? 'rgba(0,0,0,0.28)' : 'rgba(255,240,220,0.1)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x + f, shaftTop);
+          ctx.lineTo(x + f, shaftTop + shaftH);
+          ctx.stroke();
+        }
+        // subtle mineral veining
+        ctx.strokeStyle = 'rgba(140,120,150,0.18)';
+        ctx.lineWidth = 1.2;
+        for (let v = 0; v < 3; v++) {
+          ctx.beginPath();
+          let vy = shaftTop + prnd() * shaftH;
+          ctx.moveTo(x - 24, vy);
+          for (let seg = 0; seg < 4; seg++) {
+            vy += (prnd() - 0.3) * shaftH * 0.12;
+            ctx.lineTo(x - 24 + seg * 16, vy);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+        // capital (top) — stepped molding
+        ctx.fillStyle = '#6a5c78';
+        ctx.fillRect(x - 34, shaftTop - 18, 68, 8);
+        ctx.fillRect(x - 30, shaftTop - 10, 60, 6);
+        ctx.fillRect(x - 34, shaftTop - 4, 68, 6);
+        ctx.fillStyle = 'rgba(255,235,210,0.12)';
+        ctx.fillRect(x - 34, shaftTop - 18, 68, 1.6);
+        // base — stepped plinth
+        const baseY = shaftTop + shaftH;
+        ctx.fillStyle = '#4a3f56';
+        ctx.fillRect(x - 34, baseY, 68, 6);
+        ctx.fillRect(x - 30, baseY + 6, 60, 6);
+        ctx.fillRect(x - 38, baseY + 12, 76, 8);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(x - 38, baseY + 19, 76, 2);
       }
       ridge(s, s.h * 0.9, 6, 0.3, '#0a0812', 291);
       glow(s, s.w * 0.5, s.h * 0.5, s.w * 0.35, 'rgba(200,170,110,0.08)');
@@ -683,12 +728,15 @@ export const sceneDefs: Record<string, SceneDef> = {
           ctx.stroke();
         }
       }
-      // the golden coffin
+      // the golden sarcophagus of Ramses II
       const cx = s.w * 0.5, cy = s.h * 0.78;
+      const crnd = mulberry32(302);
       ctx.save();
       const g = ctx.createLinearGradient(cx - 110, cy, cx + 110, cy);
-      g.addColorStop(0, '#8a6018');
+      g.addColorStop(0, '#7a5414');
+      g.addColorStop(0.18, '#c9962e');
       g.addColorStop(0.5, '#ffce5e');
+      g.addColorStop(0.82, '#c9962e');
       g.addColorStop(1, '#7a5414');
       ctx.fillStyle = g;
       ctx.beginPath();
@@ -698,8 +746,90 @@ export const sceneDefs: Record<string, SceneDef> = {
       ctx.lineTo(cx + 110, cy + 26);
       ctx.closePath();
       ctx.fill();
+      // gilt rim
+      ctx.strokeStyle = 'rgba(255,240,200,0.55)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - 110, cy + 26);
+      ctx.lineTo(cx - 80, cy - 30);
+      ctx.lineTo(cx + 80, cy - 30);
+      ctx.lineTo(cx + 110, cy + 26);
+      ctx.stroke();
+
+      // the face mask, inlaid on the lid
+      const fy = cy - 8;
+      ctx.fillStyle = '#2a1e3a'; // lapis lazuli striped headdress
+      ctx.beginPath();
+      ctx.moveTo(cx - 30, fy - 40);
+      ctx.lineTo(cx + 30, fy - 40);
+      ctx.lineTo(cx + 40, fy + 20);
+      ctx.lineTo(cx + 16, fy + 20);
+      ctx.lineTo(cx + 16, fy + 42);
+      ctx.lineTo(cx - 16, fy + 42);
+      ctx.lineTo(cx - 16, fy + 20);
+      ctx.lineTo(cx - 40, fy + 20);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,206,94,0.7)'; // gold striping
+      ctx.lineWidth = 3;
+      for (const dx of [-24, -12, 0, 12, 24]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + dx * 1.15, fy - 38);
+        ctx.lineTo(cx + dx, fy + 20);
+        ctx.stroke();
+      }
+      // the calm gilded face
+      ctx.fillStyle = '#ffce5e';
+      ctx.beginPath();
+      ctx.ellipse(cx, fy - 6, 17, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1a1220'; // kohl-lined eyes
+      ctx.beginPath();
+      ctx.ellipse(cx - 7, fy - 8, 4, 2.2, -0.15, 0, Math.PI * 2);
+      ctx.ellipse(cx + 7, fy - 8, 4, 2.2, 0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#1a1220'; // brows + false beard
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(cx - 10, fy - 12);
+      ctx.lineTo(cx - 3, fy - 13);
+      ctx.moveTo(cx + 10, fy - 12);
+      ctx.lineTo(cx + 3, fy - 13);
+      ctx.stroke();
+      ctx.fillStyle = '#2a1e3a';
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, fy + 14);
+      ctx.lineTo(cx + 5, fy + 14);
+      ctx.lineTo(cx + 3, fy + 30);
+      ctx.lineTo(cx - 3, fy + 30);
+      ctx.closePath();
+      ctx.fill();
+
+      // hieroglyphic band down the length of the coffin
+      ctx.strokeStyle = 'rgba(122,84,20,0.6)';
+      ctx.lineWidth = 1.4;
+      for (const [gx, gy] of [[-72, 4], [-52, 4], [52, 4], [72, 4]] as const) {
+        const x = cx + gx, y = cy + gy;
+        const kind = Math.floor(crnd() * 3);
+        ctx.beginPath();
+        if (kind === 0) ctx.arc(x, y, 5, 0, Math.PI * 2);
+        else if (kind === 1) { ctx.moveTo(x - 5, y + 5); ctx.lineTo(x, y - 5); ctx.lineTo(x + 5, y + 5); ctx.closePath(); }
+        else { ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y); ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5); }
+        ctx.stroke();
+      }
+      // crossed arms / crook and flail, resting on the chest
+      ctx.strokeStyle = '#ffce5e';
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - 34, fy + 44);
+      ctx.lineTo(cx + 6, fy + 60);
+      ctx.moveTo(cx + 34, fy + 44);
+      ctx.lineTo(cx - 6, fy + 60);
+      ctx.stroke();
       ctx.restore();
-      glow(s, cx, cy - 10, 130, 'rgba(255,205,90,0.3)');
+      glow(s, cx, fy - 6, 90, 'rgba(255,205,90,0.35)');
+      glow(s, cx, cy - 10, 140, 'rgba(255,205,90,0.16)');
     },
   },
 
@@ -997,29 +1127,105 @@ export const sceneDefs: Record<string, SceneDef> = {
     particles: [{ kind: 'dust', count: 10, hue: '#a8a090' }],
     paint(s) {
       sceneDefs.maze.paint(s);
-      const { ctx } = s;
-      // the fallen adventurer
-      const sx = s.w * 0.52, sy = s.h * 0.88;
-      ctx.strokeStyle = '#c8bfa8';
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
-      // ribcage arcs
-      for (let i = 0; i < 4; i++) {
+      const { ctx, w, h } = s;
+      const srnd = mulberry32(374);
+      // the fallen adventurer, sprawled on the cave floor
+      const sx = w * 0.5, sy = h * 0.87;
+      const bone = (x1: number, y1: number, x2: number, y2: number, thick: number) => {
+        ctx.strokeStyle = '#d4c8ab';
+        ctx.lineWidth = thick;
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.arc(sx - 20 + i * 12, sy - 8, 12, Math.PI * 1.1, Math.PI * 1.9);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        // knuckle joints, so it reads as bone rather than a stick
+        ctx.fillStyle = '#e2d8c0';
+        for (const [ex, ey] of [[x1, y1], [x2, y2]] as const) {
+          ctx.beginPath();
+          ctx.arc(ex, ey, thick * 0.62, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      };
+
+      // spine, curving into the ground
+      ctx.strokeStyle = '#d4c8ab';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(sx + 30, sy - 24);
+      ctx.quadraticCurveTo(sx, sy - 6, sx - 34, sy + 4);
+      ctx.stroke();
+      // ribcage — a real barrel of curved ribs, not a row of arcs
+      for (let i = 0; i < 5; i++) {
+        const t = i / 4;
+        const rx = sx + 24 - t * 44;
+        const ry = sy - 22 + t * 6;
+        const r = 13 - t * 3;
+        ctx.strokeStyle = '#cfc3a6';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(rx, ry, r, Math.PI * 0.15, Math.PI * 0.95);
         ctx.stroke();
       }
-      // skull
-      ctx.fillStyle = '#d8cfb8';
+      // pelvis
+      ctx.fillStyle = '#c9bda0';
       ctx.beginPath();
-      ctx.arc(sx + 44, sy - 12, 11, 0, Math.PI * 2);
+      ctx.ellipse(sx - 36, sy + 6, 10, 7, 0.3, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#0a0a0a';
+      // one arm flung out, one bent beneath the skull
+      bone(sx + 18, sy - 26, sx + 46, sy - 4, 4);
+      bone(sx + 46, sy - 4, sx + 60, sy + 10, 3.5);
+      bone(sx - 32, sy + 4, sx - 58, sy - 6, 3.5);
+      // legs, one drawn up
+      bone(sx - 34, sy + 8, sx - 52, sy + 30, 5);
+      bone(sx - 52, sy + 30, sx - 40, sy + 46, 4);
+      bone(sx - 34, sy + 8, sx - 12, sy + 34, 5);
+      bone(sx - 12, sy + 34, sx - 20, sy + 52, 4);
+      // scattered loose bones and ribs nearby, picked clean
+      for (let i = 0; i < 5; i++) {
+        const a = srnd() * Math.PI;
+        const len = 10 + srnd() * 16;
+        const bx = sx + 30 + (srnd() - 0.3) * 70;
+        const by = sy + 20 + srnd() * 20;
+        bone(bx - Math.cos(a) * len * 0.5, by - Math.sin(a) * len * 0.25, bx + Math.cos(a) * len * 0.5, by + Math.sin(a) * len * 0.25, 2.5);
+      }
+
+      // the skull — the focal point, turned toward the passage
+      const kx = sx + 32, ky = sy - 30;
+      ctx.fillStyle = '#e6dcc0';
       ctx.beginPath();
-      ctx.arc(sx + 41, sy - 14, 2.5, 0, Math.PI * 2);
-      ctx.arc(sx + 48, sy - 14, 2.5, 0, Math.PI * 2);
+      ctx.ellipse(kx, ky, 12, 11, 0, 0, Math.PI * 2);
       ctx.fill();
-      // key glint
+      ctx.fillStyle = '#dcd0b4'; // jaw
+      ctx.beginPath();
+      ctx.ellipse(kx + 1, ky + 10, 8, 6, 0, 0, Math.PI);
+      ctx.fill();
+      // eye sockets — deep and dark
+      ctx.fillStyle = '#0a0806';
+      ctx.beginPath();
+      ctx.ellipse(kx - 5, ky - 2, 3.6, 4.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(kx + 5, ky - 2, 3.6, 4.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // nasal cavity
+      ctx.beginPath();
+      ctx.moveTo(kx - 1.5, ky + 2);
+      ctx.lineTo(kx + 1.5, ky + 2);
+      ctx.lineTo(kx, ky + 6);
+      ctx.closePath();
+      ctx.fill();
+      // teeth
+      ctx.strokeStyle = 'rgba(10,8,6,0.6)';
+      ctx.lineWidth = 0.8;
+      for (let t = -5; t <= 5; t += 2.2) {
+        ctx.beginPath();
+        ctx.moveTo(kx + t, ky + 9);
+        ctx.lineTo(kx + t, ky + 13);
+        ctx.stroke();
+      }
+      // a hint of that dim glow inside the sockets
+      glow(s, kx, ky - 2, 20, 'rgba(255,200,120,0.16)');
+
+      // key glint, half-buried beside the skeleton
       glow(s, sx - 50, sy - 4, 18, 'rgba(255,230,140,0.55)');
     },
   },
