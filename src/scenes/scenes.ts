@@ -1,6 +1,7 @@
 import {
   type SceneCtx, type ParticleKind,
   sky, glow, ridge, treeBand, stalactites, stalagmites, stars, fog, lightShaft, lerp, mulberry32,
+  flames, flicker, torrent, waterPlane,
 } from './paint';
 import { hifiScenes } from './hifi';
 
@@ -228,23 +229,8 @@ export const sceneDefs: Record<string, SceneDef> = {
       ctx.beginPath();
       ctx.moveTo(s.w, 0); ctx.lineTo(s.w * 0.7, 0); ctx.lineTo(s.w * 0.86, s.h); ctx.lineTo(s.w, s.h); ctx.closePath(); ctx.fill();
       lightShaft(s, s.w * 0.5, 120, s.w * 0.5, 240, s.h, 'rgba(200,215,255,0.13)', 0.9);
-      // river
-      const g = ctx.createLinearGradient(0, s.h * 0.8, 0, s.h);
-      g.addColorStop(0, '#26314f');
-      g.addColorStop(1, '#111726');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, s.h * 0.8, s.w, s.h * 0.2);
-      // shimmering water lines
-      ctx.strokeStyle = 'rgba(160,200,255,0.35)';
-      ctx.lineWidth = 1.5;
-      for (let i = 0; i < 8; i++) {
-        const y = s.h * (0.82 + i * 0.02);
-        const off = Math.sin(s.t * 1.2 + i) * 14;
-        ctx.beginPath();
-        ctx.moveTo(s.w * 0.2 + off, y);
-        ctx.lineTo(s.w * 0.5 + off, y);
-        ctx.stroke();
-      }
+      // the runoff of Aragain Falls, sliding past
+      waterPlane(s, s.h * 0.8, '#26314f', '#0d1220', 92, 'rgba(170,210,255,0.4)');
       ridge(s, s.h * 0.84, 12, 0.6, '#0b0916', 91);
     },
   },
@@ -743,8 +729,8 @@ export const sceneDefs: Record<string, SceneDef> = {
       for (const dx of [-58, 58]) {
         ctx.fillStyle = '#e8dcc8';
         ctx.fillRect(ax + dx - 4, ay - 84, 8, 32);
-        const flick = Math.sin(s.t * 9 + dx) * 2;
-        glow(s, ax + dx, ay - 90, 22 + flick, 'rgba(255,205,120,0.85)');
+        flames(s, ax + dx, ay - 84, 7, dx, 0.85);
+        glow(s, ax + dx, ay - 92, 20 + flicker(s.t, dx) * 6, 'rgba(255,205,120,0.6)');
       }
       glow(s, ax, ay - 60, 140, 'rgba(255,230,170,0.14)');
       // dark hole in the corner
@@ -763,23 +749,9 @@ export const sceneDefs: Record<string, SceneDef> = {
     paint(s) {
       caveBase(s, 311, { mid: '#0c1622', near: '#12202e', glowColor: 'rgba(90,170,230,0.14)' });
       const { ctx } = s;
-      // sheet of water down the far wall
-      const g = ctx.createLinearGradient(0, s.h * 0.1, 0, s.h * 0.8);
-      g.addColorStop(0, 'rgba(150,210,255,0)');
-      g.addColorStop(0.5, 'rgba(150,210,255,0.22)');
-      g.addColorStop(1, 'rgba(150,210,255,0.05)');
-      ctx.fillStyle = g;
-      ctx.fillRect(s.w * 0.6, s.h * 0.1, s.w * 0.32, s.h * 0.7);
-      ctx.strokeStyle = 'rgba(200,235,255,0.3)';
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 6; i++) {
-        const x = s.w * (0.62 + i * 0.05);
-        const off = (s.t * 300 + i * 61) % (s.h * 0.66);
-        ctx.beginPath();
-        ctx.moveTo(x, s.h * 0.1 + off);
-        ctx.lineTo(x, s.h * 0.1 + off + 20);
-        ctx.stroke();
-      }
+      // the cataract roaring down the far wall
+      torrent(s, s.w * 0.76, s.w * 0.24, s.w * 0.76, s.w * 0.32, s.h * 0.08, s.h * 0.82, s.flags['echoSolved'] ? 0.55 : 0.9);
+      waterPlane(s, s.h * 0.82, 'rgba(60,110,150,0.45)', 'rgba(10,20,32,0.1)', 312, 'rgba(180,225,255,0.35)');
       // concentric sound rings
       if (!s.flags['echoSolved']) {
         ctx.strokeStyle = 'rgba(160,210,255,0.12)';
