@@ -1565,12 +1565,85 @@ const livingRoom: SceneDef = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// VICTORY — the living room, transfigured, once the last treasure is home
+// ---------------------------------------------------------------------------
+
+const victory: SceneDef = {
+  particles: [
+    { kind: 'sparkle', count: 44, hue: '#ffe9a0' },
+    { kind: 'firefly', count: 12, hue: '#ffd98a' },
+    { kind: 'ember', count: 10, hue: '#ffb46a' },
+  ],
+  paintBase(s) {
+    livingRoom.paintBase!(s);
+  },
+  paint(s) {
+    livingRoom.paint(s);
+    const { ctx, w, h } = s;
+    // the case itself, the source of all this light
+    const tc = { x: w * 0.72, y: h * 0.34, w: w * 0.22, h: h * 0.42 };
+    const cx = tc.x + tc.w / 2;
+    const cy = tc.y + tc.h / 2;
+    const buildIn = Math.min(1, s.t / 2.4);
+    const breathe = 0.85 + 0.15 * Math.sin(s.t * 0.9);
+
+    // radiant golden rays sweeping slowly outward from the case
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const rays = 16;
+    for (let i = 0; i < rays; i++) {
+      const a = (i / rays) * Math.PI * 2 + s.t * 0.06;
+      const len = Math.max(w, h) * (0.55 + 0.1 * Math.sin(s.t * 1.1 + i * 1.7)) * buildIn;
+      const grad = ctx.createLinearGradient(cx, cy, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+      grad.addColorStop(0, `rgba(255,220,140,${0.2 * buildIn * breathe})`);
+      grad.addColorStop(1, 'rgba(255,220,140,0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 3 + 2 * Math.abs(Math.sin(i * 1.3));
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    glow(s, cx, cy, w * 0.4 * buildIn * breathe, `rgba(255,205,110,${0.16 * buildIn})`);
+
+    // the treasures, freed from their shelves, drifting in a slow halo
+    const items = String(s.flags['caseItems'] ?? '').split(',').filter(Boolean);
+    const ringCx = w * 0.46;
+    const ringCy = h * 0.4;
+    const ringR = Math.min(w, h) * 0.25 * buildIn;
+    items.forEach((id, i) => {
+      const a = (i / Math.max(1, items.length)) * Math.PI * 2 + s.t * 0.18;
+      const ix = ringCx + Math.cos(a) * ringR;
+      const iy = ringCy + Math.sin(a) * ringR * 0.5;
+      const bob = Math.sin(s.t * 1.5 + i * 2) * 4;
+      const sz = 32 * buildIn;
+      if (sz < 2) return;
+      glow(s, ix, iy + bob, sz * 1.5, `rgba(255,220,150,${0.4 * buildIn})`);
+      ctx.drawImage(iconFor(id, Math.round(sz)), ix - sz / 2, iy + bob - sz / 2, sz, sz);
+    });
+
+    // a warm wash over the whole triumphant room
+    const wash = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.75);
+    wash.addColorStop(0, `rgba(255,205,110,${0.1 * buildIn})`);
+    wash.addColorStop(1, 'rgba(255,205,110,0)');
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  },
+};
+
 export const hifiScenes: Record<string, SceneDef> = {
   whiteHouse,
   houseSide,
   behindHouse,
   kitchen,
   livingRoom,
+  victory,
 };
 
 // ---------------------------------------------------------------------------

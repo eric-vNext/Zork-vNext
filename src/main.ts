@@ -37,7 +37,7 @@ import { Game } from './engine/game';
 import { SceneRenderer } from './scenes/renderer';
 import { SoundEngine } from './audio/sound';
 import { iconFor } from './scenes/icons';
-import type { OutputLine } from './engine/types';
+import type { OutputLine, SfxName } from './engine/types';
 
 const game = new Game();
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
@@ -151,7 +151,8 @@ let lastSceneId = '';
 
 function syncScene(roomChanged: boolean) {
   const lit = game.isLit();
-  const sceneId = game.state.dead ? 'darkness' : lit ? game.room.scene : 'darkness';
+  const victorious = game.state.won && game.state.room === 'livingRoom';
+  const sceneId = game.state.dead ? 'darkness' : victorious ? 'victory' : lit ? game.room.scene : 'darkness';
   renderer.setScene(sceneId, sceneFlags());
   renderer.updateFlags(sceneFlags());
   sound.setAmbience(game.state.dead ? 'maze' : game.room.ambience);
@@ -211,6 +212,34 @@ function refreshChips() {
 
 // ---------------------------------------------------------------- input
 
+function triggerImpacts(sfx: SfxName[]) {
+  for (const name of sfx) {
+    switch (name) {
+      case 'swordHit':
+        renderer.triggerFlash('rgba(255,255,255,0.3)', 120);
+        renderer.triggerShake(4, 170);
+        break;
+      case 'hurt':
+        renderer.triggerFlash('rgba(255,50,50,0.4)', 180);
+        renderer.triggerShake(6, 220);
+        break;
+      case 'sword':
+        renderer.triggerShake(2, 110);
+        break;
+      case 'die':
+        renderer.triggerFlash('rgba(255,30,20,0.55)', 280);
+        renderer.triggerShake(9, 320);
+        break;
+      case 'win':
+        renderer.triggerFlash('rgba(255,225,150,0.4)', 320);
+        break;
+      case 'rumble':
+        renderer.triggerShake(3, 260);
+        break;
+    }
+  }
+}
+
 function submit(raw: string) {
   const text = raw.trim();
   if (!text) return;
@@ -220,6 +249,7 @@ function submit(raw: string) {
   const fx = game.execute(text);
   for (const line of fx.lines) print(line);
   for (const s of fx.sfx) sound.play(s);
+  triggerImpacts(fx.sfx);
   if (/^(i|inv|inventory)$/i.test(text) && !game.state.dead) {
     showInventoryIcons();
   }

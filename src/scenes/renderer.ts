@@ -21,6 +21,9 @@ export class SceneRenderer {
   /** cached static layer for scenes that split base/dynamic painting */
   private baseCache: HTMLCanvasElement | null = null;
   private baseKey = '';
+  /** one-shot combat/event feedback: a brief screen shake and/or color flash */
+  private shake: { start: number; duration: number; amount: number; angle: number } | null = null;
+  private flash: { start: number; duration: number; color: string } | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -74,6 +77,16 @@ export class SceneRenderer {
     this.flags = flags;
   }
 
+  /** brief directional screen shake in CSS pixels, e.g. for a landed blow */
+  triggerShake(amount: number, duration = 200) {
+    this.shake = { start: performance.now(), duration, amount, angle: Math.random() * Math.PI * 2 };
+  }
+
+  /** brief full-screen color wash, e.g. a hit flash or a death flare */
+  triggerFlash(color: string, duration = 180) {
+    this.flash = { start: performance.now(), duration, color };
+  }
+
   private respawnParticles() {
     const def = sceneDefs[this.sceneId] ?? sceneDefs.darkness;
     this.particles = [];
@@ -108,14 +121,40 @@ export class SceneRenderer {
     this.running = false;
   }
 
+  private currentShakeOffset(now: number): { dx: number; dy: number } {
+    if (!this.shake) return { dx: 0, dy: 0 };
+    const elapsed = now - this.shake.start;
+    if (elapsed >= this.shake.duration) {
+      this.shake = null;
+      return { dx: 0, dy: 0 };
+    }
+    const p = elapsed / this.shake.duration;
+    const wobble = Math.sin(p * Math.PI * 5) * this.shake.amount * (1 - p);
+    return { dx: Math.cos(this.shake.angle) * wobble, dy: Math.sin(this.shake.angle) * wobble };
+  }
+
+  private currentFlash(now: number): { color: string; alpha: number } | null {
+    if (!this.flash) return null;
+    const elapsed = now - this.flash.start;
+    if (elapsed >= this.flash.duration) {
+      this.flash = null;
+      return null;
+    }
+    return { color: this.flash.color, alpha: 1 - elapsed / this.flash.duration };
+  }
+
   private frame() {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
 
     const ctx = this.ctx;
+    const { dx, dy } = this.currentShakeOffset(now);
+    const tx = dx * this.dpr;
+    const ty = dy * this.dpr;
+
     ctx.save();
-    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, tx, ty);
 
     const def = sceneDefs[this.sceneId] ?? sceneDefs.darkness;
     const s: SceneCtx = {
@@ -148,7 +187,7 @@ export class SceneRenderer {
         this.baseKey = key;
       }
       ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(1, 0, 0, 1, tx, ty);
       ctx.drawImage(this.baseCache, 0, 0);
       ctx.restore();
     }
@@ -161,12 +200,23 @@ export class SceneRenderer {
     const fadeT = (now - this.fadeStart) / 1000 / FADE_SECONDS;
     if (this.snapshot && fadeT < 1) {
       ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(1, 0, 0, 1, tx, ty);
       ctx.globalAlpha = 1 - easeInOut(Math.min(1, fadeT));
       ctx.drawImage(this.snapshot, 0, 0);
       ctx.restore();
     } else if (this.snapshot && fadeT >= 1) {
       this.snapshot = null;
+    }
+
+    // one-shot color flash, drawn last and unaffected by shake
+    const flash = this.currentFlash(now);
+    if (flash) {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = flash.alpha;
+      ctx.fillStyle = flash.color;
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      ctx.restore();
     }
 
     ctx.restore();
