@@ -103,9 +103,31 @@ picked it up from one change.
 death variants by cause, grue glimpse treatment, mobile performance pass,
 `prefers-reduced-motion` audit, room title card / status bar chrome.
 
+**P3 — parked, future exploration**: Prototype a WebGL/shader-based
+render layer as the next fidelity tier once Canvas 2D detail work hits
+diminishing returns. The pitch: stay zero-asset and offline (no video,
+no illustrated art files — same "infinite seeded variety" identity),
+but trade hand-coded facet/gradient approximations for real fractal
+noise (rock/cloud/water textures), proper post-processing (bloom,
+chromatic aberration, real film grain), and particle counts an order
+of magnitude higher via GPU instancing. This is a real engineering
+lift — essentially a new render layer living alongside or replacing
+`src/scenes/paint.ts` — so treat it as a deliberate spike/prototype
+branch, not an incremental PR. Evaluate on a couple of hero scenes
+(candidates: Living Room fire, the water set) before committing to a
+full migration.
+
 ## Not in scope (flag before touching)
 
-- Swapping Canvas 2D for WebGL/Three.js — a real architecture decision,
-  not something to slide into via a design hand-off.
+- Swapping Canvas 2D for WebGL/Three.js *as a silent incremental
+  change* — see P3 above; it's a real direction, just not one to slide
+  into mid-backlog without deciding first.
+- Video clips / animated media for scene fidelity — considered and
+  rejected: state-reactive scenes (`trollDead`, `cyclopsAsleep`,
+  `rainbowSolid`, ...) would need a pre-rendered clip per flag
+  combination, and video can't be recolored or composited as cheaply
+  as procedural or shader-based rendering. Revisit only for a specific
+  one-off cinematic beat (e.g. the victory sequence), not as a general
+  fidelity strategy.
 - Adding real audio samples in place of the synthesized `src/audio/`
   engine — a different backlog entirely.
