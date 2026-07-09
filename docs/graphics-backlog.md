@@ -99,9 +99,14 @@ caveBase so every generic cave scene (cellar, chasm, gallery, studio,
 passage, round room, loud room, lobby, maintenance, maze, grating...)
 picked it up from one change.
 
-**P2**: Scene crossfade quality, combat impact effects, victory sequence,
-death variants by cause, grue glimpse treatment, mobile performance pass,
+**P2 remaining**: Scene crossfade quality, mobile performance pass,
 `prefers-reduced-motion` audit, room title card / status bar chrome.
+
+**P2 — done**: Combat impact effects (screen flash/shake tied to sfx),
+victory sequence (living room transfigures with golden rays + a
+drifting treasure-icon halo once the case is complete), death variants
+by cause (five distinct beats: grue/troll/thief/cyclops/drowning), and
+a rebuilt grue "glimpse" treatment for the ambient dark-room state.
 
 **P3 — parked, future exploration**: Prototype a WebGL/shader-based
 render layer as the next fidelity tier once Canvas 2D detail work hits
