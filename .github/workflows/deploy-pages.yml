@@ -1,10 +1,11 @@
 name: Deploy to GitHub Pages
 
+# Manual-only for now — see deploy-pages-branch.yml, which took over the
+# push trigger as a workaround for this pipeline's deploy-pages@v4 step
+# hanging on GitHub's "purging_cdn" status check. Switch back by moving
+# the push trigger back here and removing it from the other workflow.
+
 on:
-  push:
-    branches:
-      - main
-      - claude/zork-port-modern-ui-molbyu
   workflow_dispatch:
 
 permissions:
