@@ -115,19 +115,37 @@ geometry every frame rather than using the `paintBase`/`paint` split
 the hi-fi scenes use — a real next win, deliberately deferred rather
 than rushed as a 12-scene refactor late in a session.
 
-**P3 — parked, future exploration**: Prototype a WebGL/shader-based
-render layer as the next fidelity tier once Canvas 2D detail work hits
-diminishing returns. The pitch: stay zero-asset and offline (no video,
-no illustrated art files — same "infinite seeded variety" identity),
-but trade hand-coded facet/gradient approximations for real fractal
-noise (rock/cloud/water textures), proper post-processing (bloom,
-chromatic aberration, real film grain), and particle counts an order
-of magnitude higher via GPU instancing. This is a real engineering
-lift — essentially a new render layer living alongside or replacing
-`src/scenes/paint.ts` — so treat it as a deliberate spike/prototype
-branch, not an incremental PR. Evaluate on a couple of hero scenes
-(candidates: Living Room fire, the water set) before committing to a
-full migration.
+**P3 — SPIKED, prototype live**: A WebGL2 evaluation build now exists
+at `/webgl-proto.html`, fully isolated from the game (own module under
+`src/webgl-proto/`, own HTML entry, own stylesheet; the only shared
+file touched is `vite.config.ts`, which gained a second, additive
+`rollupOptions.input` entry — `index.html`'s own output is byte-for-byte
+unchanged). It demonstrates the pitch on the two candidate hero scenes:
+
+- Real 5-octave simplex fractal noise with domain warping driving both
+  a fire scene (Living Room hearth) and a water scene (dam/falls),
+  replacing hand-coded facet/gradient approximations.
+- A genuine 2-pass bloom pipeline: luminance bright-pass → separable
+  Gaussian blur (ping-pong half-res framebuffers) → additive composite.
+- 4,000 GPU-instanced particles (embers / spray) with zero CPU-side
+  simulation — an order of magnitude past what `spawnParticles()` does
+  in JS.
+
+Caveats from the spike, for whoever picks this up next: the water
+shader's visual character reads more like drifting foam/cloud than
+flowing water and would want another tuning pass before being called
+representative; and any FPS numbers gathered in a headless/sandboxed
+environment reflect software (swiftshader) rendering, not real
+device/GPU performance — re-benchmark on an actual device before using
+perf numbers to justify (or reject) a migration.
+
+Still unresolved, and blocking a real migration decision either way:
+this is one render layer for two scenes, not a plan for porting all
+~30 rooms' worth of `src/scenes/paint.ts` logic, state-flag-driven
+variants, and the Canvas-based UI overlays (transcript, chips, status
+bar) that currently composite over the canvas via DOM. Treat the spike
+as answering "can this look good and perform," not "here is the
+migration path."
 
 ## Not in scope (flag before touching)
 
