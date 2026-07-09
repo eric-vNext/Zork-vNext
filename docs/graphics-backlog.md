@@ -93,9 +93,11 @@ treasure room sconces). Also done from P1: rainbow/falls upgrade, dam
 face + sluice drama, gradient banding dither, trophy case fill state,
 and a static-layer render cache (was P2 #23).
 
-**P1 remaining**: Skeleton legibility (maze3), Egyptian coffin, temple
-stonework, cave rock-texture applied to the generic caveBase scenes
-(cellar, chasm, gallery, studio, passage, round room, maze...).
+**P1 — ALL DONE**: Skeleton legibility (maze3), Egyptian coffin, temple
+pillar fluting/stonework, and a shared rock-facet texture wired into
+caveBase so every generic cave scene (cellar, chasm, gallery, studio,
+passage, round room, loud room, lobby, maintenance, maze, grating...)
+picked it up from one change.
 
 **P2**: Scene crossfade quality, combat impact effects, victory sequence,
 death variants by cause, grue glimpse treatment, mobile performance pass,
