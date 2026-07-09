@@ -6,7 +6,7 @@ import type { SceneDef } from './scenes';
 import {
   type SceneCtx,
   boardedPlanks, bricks, clapboards, flames, flicker, fog, glow, grain,
-  lightShaft, mulberry32, ridge, shade, shingles, softShadow, stalactites, stars, treeBand,
+  lightShaft, mulberry32, ridge, shade, shingles, softShadow, stalactites, stars, torrent, treeBand, waterPlane,
 } from './paint';
 
 // ---------------------------------------------------------------------------
@@ -2492,4 +2492,632 @@ Object.assign(hifiScenes, {
   trollRoom: trollRoomHifi,
   cyclops: cyclopsHifi,
   treasure: treasureHifi,
+});
+
+// ---------------------------------------------------------------------------
+// THE DOME ROOM — standing at the railing, looking down into the dark
+// ---------------------------------------------------------------------------
+
+const domeHifi: SceneDef = {
+  particles: [
+    { kind: 'dust', count: 18, hue: '#b8c8e0' },
+    { kind: 'mist', count: 8, hue: 'rgba(70,90,140,0.5)' },
+  ],
+  paintBase(s) {
+    const { ctx, w, h } = s;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#0d1222');
+    g.addColorStop(0.45, '#0a0e1a');
+    g.addColorStop(1, '#04050c');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    // the dome soars overhead: stone ribs converging toward an apex behind you
+    for (let i = 0; i < 6; i++) {
+      const r = h * (0.55 + i * 0.16);
+      ctx.strokeStyle = `rgba(120,140,190,${0.22 - i * 0.03})`;
+      ctx.lineWidth = 10 - i;
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 1.25, r, Math.PI * 1.12, Math.PI * 1.88);
+      ctx.stroke();
+      // mortar joints between ribs
+      ctx.strokeStyle = `rgba(8,10,20,${0.5 - i * 0.06})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 1.25, r - 6, Math.PI * 1.12, Math.PI * 1.88);
+      ctx.stroke();
+    }
+    // radial ribs
+    for (let i = 0; i <= 8; i++) {
+      const a = Math.PI * (1.12 + (i / 8) * 0.76);
+      ctx.strokeStyle = 'rgba(90,110,160,0.14)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.5 + Math.cos(a) * h * 0.52, h * 1.25 + Math.sin(a) * h * 0.52);
+      ctx.lineTo(w * 0.5 + Math.cos(a) * h * 1.5, h * 1.25 + Math.sin(a) * h * 1.5);
+      ctx.stroke();
+    }
+    glow(s, w * 0.5, h * 0.12, w * 0.4, 'rgba(90,120,190,0.1)');
+
+    // THE VOID — the shaft falling away below the railing
+    const void1 = ctx.createRadialGradient(w * 0.5, h * 0.95, w * 0.05, w * 0.5, h * 0.9, w * 0.6);
+    void1.addColorStop(0, 'rgba(0,0,0,0.92)');
+    void1.addColorStop(0.55, 'rgba(2,3,8,0.75)');
+    void1.addColorStop(1, 'rgba(2,3,8,0)');
+    ctx.fillStyle = void1;
+    ctx.fillRect(0, h * 0.55, w, h * 0.45);
+
+    // the worn wooden railing, your only friend here
+    const railY = h * 0.72;
+    ctx.strokeStyle = '#3a2c22';
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(-4, railY + h * 0.05);
+    ctx.quadraticCurveTo(w * 0.5, railY - h * 0.075, w + 4, railY + h * 0.05);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(200,180,150,0.22)'; // lamplight on the handrail
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-4, railY + h * 0.045);
+    ctx.quadraticCurveTo(w * 0.5, railY - h * 0.08, w + 4, railY + h * 0.045);
+    ctx.stroke();
+    // balusters
+    ctx.strokeStyle = '#2c211a';
+    ctx.lineWidth = 6;
+    for (let i = 0; i <= 13; i++) {
+      const bx = (i / 13) * w;
+      const by = railY + h * 0.05 - Math.sin((i / 13) * Math.PI) * h * 0.125;
+      ctx.beginPath();
+      ctx.moveTo(bx, by + 4);
+      ctx.lineTo(bx, by + h * 0.1);
+      ctx.stroke();
+    }
+    // narrow ledge underfoot
+    const ledge = ctx.createLinearGradient(0, h * 0.86, 0, h);
+    ledge.addColorStop(0, '#1c1826');
+    ledge.addColorStop(1, '#0a0812');
+    ctx.fillStyle = ledge;
+    ctx.fillRect(0, h * 0.86, w, h * 0.14);
+    ctx.fillStyle = 'rgba(140,160,210,0.08)';
+    ctx.fillRect(0, h * 0.86, w, 2);
+  },
+  paint(s) {
+    const { ctx, w, h } = s;
+    // far, far below: the eternal flame of the ivory torch
+    const tw = 0.8 + 0.2 * flicker(s.t, 3);
+    glow(s, w * 0.5, h * 0.87, 9 * tw, 'rgba(255,180,80,0.55)');
+    glow(s, w * 0.5, h * 0.87, 26 * tw, 'rgba(255,140,50,0.18)');
+
+    if (s.flags['ropeTied']) {
+      // the rope drops over the rail and vanishes toward that tiny light
+      const sway = Math.sin(s.t * 0.7) * 7;
+      const grad = ctx.createLinearGradient(0, h * 0.64, 0, h * 0.9);
+      grad.addColorStop(0, '#96744a');
+      grad.addColorStop(1, 'rgba(90,66,40,0.15)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 4.5;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.5, h * 0.645);
+      ctx.quadraticCurveTo(w * 0.5 + sway, h * 0.78, w * 0.5 + sway * 1.6, h * 0.9);
+      ctx.stroke();
+      // knot at the railing
+      ctx.fillStyle = '#7a5c38';
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.645, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(40,26,14,0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.645, 4, 0.4, 2.6);
+      ctx.stroke();
+    }
+    fog(s, h * 0.8, 50, 'rgba(60,80,130,0.4)', 0.14, 6, 91);
+  },
+};
+
+// ---------------------------------------------------------------------------
+// THE TORCH ROOM — the same shaft, seen from the bottom
+// ---------------------------------------------------------------------------
+
+const torchRoomHifi: SceneDef = {
+  particles: [
+    { kind: 'ember', count: 16, hue: '#ffb45a' },
+    { kind: 'dust', count: 10, hue: '#e0c8a8' },
+  ],
+  paintBase(s) {
+    const { ctx, w, h } = s;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#05060e');
+    g.addColorStop(0.5, '#120d16');
+    g.addColorStop(1, '#241820');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    // the dome, dizzyingly far overhead
+    for (let i = 0; i < 5; i++) {
+      const r = h * (0.3 + i * 0.13);
+      ctx.strokeStyle = `rgba(150,120,90,${0.16 - i * 0.025})`;
+      ctx.lineWidth = 7 - i;
+      ctx.beginPath();
+      ctx.arc(w * 0.5, -h * 0.28, r, Math.PI * 0.12, Math.PI * 0.88);
+      ctx.stroke();
+    }
+    // the frieze of elfin hacking rites, ringing the dome
+    const rnd = mulberry32(93);
+    ctx.strokeStyle = 'rgba(220,180,120,0.3)';
+    ctx.lineWidth = 1.6;
+    for (let i = 0; i < 14; i++) {
+      const a = Math.PI * (0.16 + (i / 14) * 0.68);
+      const fx = w * 0.5 + Math.cos(a) * h * 0.62;
+      const fy = -h * 0.28 + Math.sin(a) * h * 0.62;
+      // tiny figure mid-hack
+      ctx.save();
+      ctx.translate(fx, fy);
+      ctx.rotate((rnd() - 0.5) * 0.3);
+      ctx.beginPath();
+      ctx.arc(0, -6, 2.4, 0, Math.PI * 2); // head
+      ctx.moveTo(0, -3.5);
+      ctx.lineTo(0, 4); // body
+      ctx.moveTo(0, -1);
+      ctx.lineTo(rnd() > 0.5 ? 6 : -6, -6); // hatchet arm, raised
+      ctx.moveTo(0, 4);
+      ctx.lineTo(-3, 9);
+      ctx.moveTo(0, 4);
+      ctx.lineTo(3, 9);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // the railing, a distant silhouette at the dome's rim
+    ctx.strokeStyle = 'rgba(30,24,20,0.9)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(w * 0.5, -h * 0.28, h * 0.56, Math.PI * 0.22, Math.PI * 0.78);
+    ctx.stroke();
+    for (let i = 0; i < 9; i++) {
+      const a = Math.PI * (0.24 + (i / 9) * 0.54);
+      const bx = w * 0.5 + Math.cos(a) * h * 0.56;
+      const by = -h * 0.28 + Math.sin(a) * h * 0.56;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx, by - 7);
+      ctx.stroke();
+    }
+
+    // floor
+    caveFloor(s, h * 0.84, 94, '#241a1c');
+    // the grand staircase down, south
+    ctx.fillStyle = '#0c0810';
+    ctx.beginPath();
+    ctx.roundRect(w * 0.8, h * 0.5, w * 0.24, h * 0.36, [10, 0, 0, 0]);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,190,130,0.12)';
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.moveTo(w * (0.82 + i * 0.02), h * (0.62 + i * 0.048));
+      ctx.lineTo(w * 1.02, h * (0.62 + i * 0.048));
+      ctx.stroke();
+    }
+
+    // the white marble pedestal
+    const px = w * 0.44;
+    const py = h * 0.84;
+    softShadow(s, px, py + 6, 60, 12, 0.5);
+    const pg = ctx.createLinearGradient(px - 26, 0, px + 26, 0);
+    pg.addColorStop(0, '#8a8078');
+    pg.addColorStop(0.5, '#e8e0d4');
+    pg.addColorStop(1, '#7a7068');
+    ctx.fillStyle = pg;
+    ctx.fillRect(px - 22, py - 74, 44, 74);
+    // fluting
+    ctx.strokeStyle = 'rgba(60,52,48,0.35)';
+    ctx.lineWidth = 2;
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(px + i * 8, py - 70);
+      ctx.lineTo(px + i * 8, py - 4);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#f2ece0'; // cap + base
+    ctx.fillRect(px - 32, py - 82, 64, 10);
+    ctx.fillRect(px - 32, py - 4, 64, 8);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(px - 32, py - 72, 64, 3);
+    // the torch stub (flame drawn live)
+    ctx.fillStyle = '#efe6d2';
+    ctx.beginPath();
+    ctx.moveTo(px - 5, py - 82);
+    ctx.lineTo(px + 5, py - 82);
+    ctx.lineTo(px + 3, py - 104);
+    ctx.lineTo(px - 3, py - 104);
+    ctx.closePath();
+    ctx.fill();
+  },
+  paint(s) {
+    const { ctx, w, h } = s;
+    const px = w * 0.44;
+    const py = h * 0.84;
+    // the eternal flame
+    flames(s, px, py - 102, h * 0.032, 9, 1.05);
+    glow(s, px, py - 112, w * 0.1 * (0.9 + 0.2 * flicker(s.t, 9)), `rgba(255,190,90,${0.5 + 0.2 * flicker(s.t, 9)})`);
+    glow(s, px, py - 100, w * 0.45, `rgba(255,150,60,${0.08 + 0.05 * flicker(s.t, 9)})`);
+    // warm pool on the floor
+    glow(s, px, py + 4, w * 0.2, `rgba(255,160,70,${0.14 + 0.07 * flicker(s.t, 4)})`);
+
+    if (s.flags['ropeTied']) {
+      // the rope dangles from the impossible ceiling, five feet too short
+      const sway = Math.sin(s.t * 0.7) * 9;
+      ctx.strokeStyle = '#8a6a42';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.5, 0);
+      ctx.quadraticCurveTo(w * 0.5 + sway * 0.6, h * 0.16, w * 0.5 + sway, h * 0.3);
+      ctx.stroke();
+      // frayed end
+      ctx.lineWidth = 1.2;
+      for (const d of [-3, 0, 3]) {
+        ctx.beginPath();
+        ctx.moveTo(w * 0.5 + sway, h * 0.3);
+        ctx.lineTo(w * 0.5 + sway + d + Math.sin(s.t * 2 + d) * 1.5, h * 0.3 + 9);
+        ctx.stroke();
+      }
+    }
+  },
+};
+
+Object.assign(hifiScenes, {
+  dome: domeHifi,
+  torchRoom: torchRoomHifi,
+});
+
+// ---------------------------------------------------------------------------
+// FLOOD CONTROL DAM #3, RESERVOIR SOUTH, END OF RAINBOW — the water set
+// ---------------------------------------------------------------------------
+
+const damHifi: SceneDef = {
+  particles: [
+    { kind: 'mist', count: 10, hue: 'rgba(150,190,220,0.5)' },
+    { kind: 'sparkle', count: 10, hue: '#cfe8ff' },
+  ],
+  paintBase(s) {
+    const { ctx, w, h } = s;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#0a1018');
+    g.addColorStop(0.5, '#13202e');
+    g.addColorStop(1, '#1a2c3d');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    glow(s, w * 0.5, h * 0.24, w * 0.42, 'rgba(100,170,230,0.12)');
+    stalactites(s, 'rgba(3,6,10,0.9)', 141, h * 0.14, 16);
+
+    // the mighty dam wall, sweeping across the canyon
+    const crest = (x: number) => h * 0.42 - Math.sin((x / w) * Math.PI) * h * 0.07;
+    const wallG = ctx.createLinearGradient(0, h * 0.32, 0, h);
+    wallG.addColorStop(0, '#3d4a5c');
+    wallG.addColorStop(0.5, '#2a3644');
+    wallG.addColorStop(1, '#141c26');
+    ctx.fillStyle = wallG;
+    ctx.beginPath();
+    ctx.moveTo(0, crest(0));
+    for (let x = 0; x <= w; x += 16) ctx.lineTo(x, crest(x));
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    ctx.fill();
+    // concrete texture: pour lines following the crest curve
+    ctx.strokeStyle = 'rgba(10,16,24,0.35)';
+    ctx.lineWidth = 1.6;
+    for (let i = 1; i < 8; i++) {
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 16) {
+        const y = crest(x) + (h - crest(x)) * (i / 8) * 0.8;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    // expansion joints
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.lineWidth = 3;
+    for (let i = 1; i < 7; i++) {
+      const x = (i / 7) * w;
+      ctx.beginPath();
+      ctx.moveTo(x, crest(x));
+      ctx.lineTo(x, h);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(160,190,220,0.08)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x + 2.5, crest(x) + 4);
+      ctx.lineTo(x + 2.5, h);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+      ctx.lineWidth = 3;
+    }
+    // crest walkway + lamplit edge
+    ctx.strokeStyle = '#4d5c6e';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(0, crest(0) - 2);
+    for (let x = 0; x <= w; x += 16) ctx.lineTo(x, crest(x) - 2);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(200,225,250,0.25)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(0, crest(0) - 4);
+    for (let x = 0; x <= w; x += 16) ctx.lineTo(x, crest(x) - 4);
+    ctx.stroke();
+    // sluice gate housings
+    for (const gx of [0.42, 0.58]) {
+      ctx.fillStyle = '#1c2632';
+      ctx.beginPath();
+      ctx.roundRect(w * gx - 14, crest(w * gx) + h * 0.05, 28, h * 0.09, 4);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(140,170,200,0.2)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(w * gx - 14, crest(w * gx) + h * 0.05, 28, h * 0.09);
+    }
+
+    // the control panel
+    const px = w * 0.14;
+    const py = h * 0.6;
+    softShadow(s, px + 45, py + 66, 60, 10, 0.4);
+    const pg = ctx.createLinearGradient(px, py, px, py + 62);
+    pg.addColorStop(0, '#18222e');
+    pg.addColorStop(1, '#0c1218');
+    ctx.fillStyle = pg;
+    ctx.beginPath();
+    ctx.roundRect(px, py, 92, 62, 5);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(150,180,210,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(px, py, 92, 62, 5);
+    ctx.stroke();
+    // rivets
+    ctx.fillStyle = 'rgba(180,200,220,0.3)';
+    for (const [rx2, ry2] of [[7, 7], [85, 7], [7, 55], [85, 55]] as const) {
+      ctx.beginPath();
+      ctx.arc(px + rx2, py + ry2, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // the large metal bolt
+    ctx.fillStyle = '#5a6878';
+    ctx.beginPath();
+    ctx.arc(px + 46, py + 42, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#39434f';
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.26;
+      ctx.beginPath();
+      ctx.arc(px + 46 + Math.cos(a) * 7, py + 42 + Math.sin(a) * 7, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(220,235,250,0.35)';
+    ctx.beginPath();
+    ctx.arc(px + 46, py + 42, 11, -2.4, -1.2);
+    ctx.stroke();
+  },
+  paint(s) {
+    const { ctx, w, h } = s;
+    const crest = (x: number) => h * 0.42 - Math.sin((x / w) * Math.PI) * h * 0.07;
+    // reservoir glimpsed beyond the crest — clipped so it stays behind the dam
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(w, 0);
+    for (let x = w; x >= 0; x -= 16) ctx.lineTo(x, crest(x) - 4);
+    ctx.closePath();
+    ctx.clip();
+    waterPlane(s, h * 0.3, 'rgba(40,70,100,0.5)', 'rgba(10,20,34,0)', 142, 'rgba(150,200,240,0.2)');
+    ctx.restore();
+    if (s.flags['gatesOpen']) {
+      for (const gx of [0.42, 0.58]) {
+        torrent(s, w * gx, 26, w * gx + w * 0.02, 54, crest(w * gx) + h * 0.06, h * 0.98, 1);
+      }
+      fog(s, h * 0.94, 44, 'rgba(210,235,255,0.6)', 0.3, 14, 143);
+    }
+    // the green plastic bubble
+    const px = w * 0.14;
+    const py = h * 0.6;
+    const on = s.flags['bubbleGlowing'];
+    ctx.fillStyle = on ? '#7dff9d' : '#1d3324';
+    ctx.beginPath();
+    ctx.arc(px + 46, py + 17, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(200,255,220,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(px + 46, py + 17, 7.5, -2.2, -0.8);
+    ctx.stroke();
+    if (on) {
+      glow(s, px + 46, py + 17, 26 + 6 * Math.sin(s.t * 2.4), 'rgba(120,255,150,0.55)');
+    }
+  },
+};
+
+const reservoirHifi: SceneDef = {
+  particles: [
+    { kind: 'mist', count: 12, hue: 'rgba(120,170,210,0.5)' },
+    { kind: 'sparkle', count: 14, hue: '#a8d8f0' },
+  ],
+  paintBase(s) {
+    const { ctx, w, h } = s;
+    rockWall(s, 150, { deep: '#080e16', mid: '#101a26', near: '#182636' });
+    if (s.flags['reservoirDrained']) {
+      // mud flats, cracked and gleaming
+      const g = ctx.createLinearGradient(0, h * 0.6, 0, h);
+      g.addColorStop(0, '#2e2418');
+      g.addColorStop(1, '#100b06');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, h * 0.6, w, h * 0.4);
+      const rnd = mulberry32(151);
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      for (let i = 0; i < 26; i++) {
+        ctx.lineWidth = 0.8 + rnd() * 1;
+        let cx2 = rnd() * w;
+        let cy2 = h * (0.64 + rnd() * 0.3);
+        ctx.beginPath();
+        ctx.moveTo(cx2, cy2);
+        for (let j = 0; j < 3; j++) {
+          cx2 += (rnd() - 0.5) * 40;
+          cy2 += (rnd() - 0.3) * 16;
+          ctx.lineTo(cx2, cy2);
+        }
+        ctx.stroke();
+      }
+      // stranded debris
+      ctx.fillStyle = '#1a1410';
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath();
+        ctx.ellipse(rnd() * w, h * (0.66 + rnd() * 0.26), 8 + rnd() * 16, 3 + rnd() * 4, rnd(), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // the trunk of jewels, half-buried in the mud
+      const tx = w * 0.56;
+      const ty = h * 0.82;
+      softShadow(s, tx, ty + 8, 60, 12, 0.5);
+      const tg = ctx.createLinearGradient(tx - 44, 0, tx + 44, 0);
+      tg.addColorStop(0, '#2e2010');
+      tg.addColorStop(0.5, '#54381c');
+      tg.addColorStop(1, '#241808');
+      ctx.fillStyle = tg;
+      ctx.beginPath();
+      ctx.roundRect(tx - 44, ty - 26, 88, 34, 5);
+      ctx.fill();
+      ctx.beginPath(); // domed lid, thrown back
+      ctx.ellipse(tx, ty - 26, 44, 14, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.strokeStyle = '#8a6a3a'; // banding
+      ctx.lineWidth = 3;
+      for (const bx of [-26, 0, 26]) {
+        ctx.beginPath();
+        ctx.moveTo(tx + bx, ty - 38);
+        ctx.lineTo(tx + bx, ty + 8);
+        ctx.stroke();
+      }
+      // jewels heaped inside
+      const jr = mulberry32(152);
+      for (let i = 0; i < 16; i++) {
+        const jx = tx + (jr() - 0.5) * 70;
+        const jy = ty - 28 - jr() * 8;
+        ctx.fillStyle = ['#d94a6a', '#3ac98a', '#4a7ad9', '#e8c84a'][Math.floor(jr() * 4)];
+        ctx.beginPath();
+        ctx.moveTo(jx, jy - 3.5);
+        ctx.lineTo(jx + 3, jy);
+        ctx.lineTo(jx, jy + 3.5);
+        ctx.lineTo(jx - 3, jy);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  },
+  paint(s) {
+    const { w, h } = s;
+    if (!s.flags['reservoirDrained']) {
+      waterPlane(s, h * 0.58, '#1e3852', '#050b14', 153, 'rgba(150,205,245,0.3)');
+      glow(s, w * 0.5, h * 0.58, w * 0.4, 'rgba(90,160,220,0.08)');
+      fog(s, h * 0.56, 40, 'rgba(140,190,230,0.4)', 0.16, 7, 154);
+    } else {
+      // the stream still threading the mud
+      waterPlane(s, h * 0.7, 'rgba(70,120,160,0.4)', 'rgba(20,40,60,0)', 155, 'rgba(170,215,250,0.3)');
+      // jewel-fire glinting from the trunk
+      const tx = w * 0.56;
+      const ty = h * 0.82;
+      glow(s, tx, ty - 30, 40, `rgba(255,170,220,${0.2 + 0.12 * Math.sin(s.t * 1.8)})`);
+      glow(s, tx - 18, ty - 32, 14, `rgba(120,255,220,${0.3 + 0.2 * Math.sin(s.t * 2.7 + 1)})`);
+      glow(s, tx + 20, ty - 28, 12, `rgba(255,230,120,${0.3 + 0.2 * Math.sin(s.t * 2.2 + 3)})`);
+      fog(s, h * 0.74, 30, 'rgba(120,160,190,0.35)', 0.12, 5, 156);
+    }
+  },
+};
+
+const rainbowHifi: SceneDef = {
+  particles: [
+    { kind: 'mist', count: 14, hue: 'rgba(200,220,255,0.6)' },
+    { kind: 'sparkle', count: 22, hue: '#ffffff' },
+  ],
+  paintBase(s) {
+    const { ctx, w, h } = s;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#232a49');
+    g.addColorStop(0.45, '#465177');
+    g.addColorStop(0.75, '#8b8fab');
+    g.addColorStop(1, '#b5b0c2');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    glow(s, w * 0.3, h * 0.3, w * 0.4, 'rgba(190,200,240,0.14)');
+    // far canyon walls framing the falls
+    ridge(s, h * 0.34, 36, 0.8, '#2c2740', 161);
+    ridge(s, h * 0.46, 30, 0.7, '#211d33', 162);
+    // the rocky beach
+    ridge(s, h * 0.78, 16, 0.7, '#262138', 163);
+    ridge(s, h * 0.88, 10, 0.6, '#171126', 164);
+    const rnd = mulberry32(165);
+    ctx.fillStyle = '#0f0b1c';
+    for (let i = 0; i < 12; i++) {
+      ctx.beginPath();
+      ctx.ellipse(rnd() * w, h * (0.84 + rnd() * 0.13), 6 + rnd() * 18, 3 + rnd() * 7, rnd(), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  paint(s) {
+    const { ctx, w, h } = s;
+    const solid = s.flags['rainbowSolid'];
+    // Aragain Falls, thundering
+    torrent(s, w * 0.82, w * 0.1, w * 0.82, w * 0.17, h * 0.18, h * 0.74, 0.9);
+    waterPlane(s, h * 0.74, 'rgba(120,150,190,0.55)', 'rgba(30,38,60,0.2)', 166, 'rgba(200,225,255,0.4)');
+    fog(s, h * 0.68, 60, 'rgba(215,230,255,0.55)', 0.22, 10, 167);
+
+    // the rainbow
+    const hues = solid
+      ? ['#ff6a6a', '#ffb35f', '#ffe95f', '#7ee87e', '#5fb9ff', '#a98aff']
+      : ['#ff9a9a', '#ffcf9a', '#fff2a8', '#b2f0b2', '#a8d4ff', '#cbb4ff'];
+    ctx.save();
+    const pulse = solid ? 0.9 : 0.34 + 0.06 * Math.sin(s.t * 0.8);
+    ctx.globalAlpha = pulse;
+    ctx.lineCap = 'round';
+    hues.forEach((hue, i) => {
+      ctx.strokeStyle = hue;
+      ctx.lineWidth = solid ? 10 : 6;
+      ctx.beginPath();
+      ctx.arc(w * 0.42, h * 1.1, h * 0.74 + i * (solid ? 10 : 6.5), Math.PI * 1.06, Math.PI * 1.94);
+      ctx.stroke();
+    });
+    ctx.restore();
+    if (solid) {
+      // it holds weight now: a glassy sheen slides along the arc
+      const sp = (s.t % 5.2) / 5.2;
+      const a = Math.PI * (1.06 + sp * 0.88);
+      const gx = w * 0.42 + Math.cos(a) * (h * 0.74 + 30);
+      const gy = h * 1.1 + Math.sin(a) * (h * 0.74 + 30);
+      glow(s, gx, gy, 34, `rgba(255,255,255,${Math.sin(sp * Math.PI) * 0.5})`);
+      // and the pot of gold waits at its end
+      const px2 = w * 0.2;
+      const py2 = h * 0.8;
+      ctx.fillStyle = '#1c1410';
+      ctx.beginPath();
+      ctx.ellipse(px2, py2, 22, 8, 0, 0, Math.PI);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(px2 - 22, py2);
+      ctx.bezierCurveTo(px2 - 24, py2 - 22, px2 + 24, py2 - 22, px2 + 22, py2);
+      ctx.closePath();
+      ctx.fill();
+      const gr = mulberry32(168);
+      for (let i = 0; i < 9; i++) {
+        ctx.fillStyle = shade('#e8b93a', (gr() - 0.4) * 0.4);
+        ctx.beginPath();
+        ctx.ellipse(px2 + (gr() - 0.5) * 34, py2 - 20 - gr() * 5, 3, 1.8, gr(), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      glow(s, px2, py2 - 16, 34, `rgba(255,215,110,${0.35 + 0.14 * Math.sin(s.t * 1.6)})`);
+    }
+  },
+};
+
+Object.assign(hifiScenes, {
+  dam: damHifi,
+  reservoir: reservoirHifi,
+  rainbow: rainbowHifi,
 });

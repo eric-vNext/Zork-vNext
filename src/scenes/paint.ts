@@ -500,3 +500,98 @@ export function softShadow(s: SceneCtx, x: number, y: number, rx: number, ry: nu
   ctx.fillRect(x - rx, y - rx, rx * 2, rx * 2);
   ctx.restore();
 }
+
+/** animated water surface: layered ripple highlights over a depth gradient */
+export function waterPlane(
+  s: SceneCtx,
+  topY: number,
+  surfColor: string,
+  deepColor: string,
+  seed: number,
+  highlight = 'rgba(160,210,250,0.35)'
+) {
+  const { ctx, w, h } = s;
+  const g = ctx.createLinearGradient(0, topY, 0, h);
+  g.addColorStop(0, surfColor);
+  g.addColorStop(1, deepColor);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, topY, w, h - topY);
+  const rnd = mulberry32(seed);
+  ctx.save();
+  ctx.strokeStyle = highlight;
+  for (let i = 0; i < 14; i++) {
+    const depth = i / 14;
+    const y = topY + depth * (h - topY) * 0.9 + 3;
+    const len = (0.12 + rnd() * 0.3) * w * (0.5 + depth);
+    const speed = (8 + rnd() * 14) * (depth + 0.3);
+    const x = ((rnd() * w * 2 + s.t * speed) % (w + len * 2)) - len;
+    ctx.globalAlpha = 0.25 + depth * 0.5;
+    ctx.lineWidth = 0.8 + depth * 1.6;
+    ctx.beginPath();
+    ctx.moveTo(x, y + Math.sin(s.t * 1.2 + i) * 1.5);
+    ctx.lineTo(x + len, y + Math.sin(s.t * 1.2 + i + 1.5) * 1.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** falling water: a wedge of animated streaks with foam at the base */
+export function torrent(
+  s: SceneCtx,
+  xTop: number,
+  wTop: number,
+  xBot: number,
+  wBot: number,
+  topY: number,
+  botY: number,
+  intensity = 1
+) {
+  const { ctx } = s;
+  ctx.save();
+  const g = ctx.createLinearGradient(0, topY, 0, botY);
+  g.addColorStop(0, `rgba(200,228,255,${0.75 * intensity})`);
+  g.addColorStop(0.7, `rgba(160,205,245,${0.45 * intensity})`);
+  g.addColorStop(1, `rgba(150,200,240,${0.12 * intensity})`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(xTop - wTop / 2, topY);
+  ctx.lineTo(xTop + wTop / 2, topY);
+  ctx.lineTo(xBot + wBot / 2, botY);
+  ctx.lineTo(xBot - wBot / 2, botY);
+  ctx.closePath();
+  ctx.fill();
+  // rushing streaks
+  ctx.clip();
+  ctx.strokeStyle = `rgba(240,250,255,${0.5 * intensity})`;
+  ctx.lineWidth = 2;
+  const height = botY - topY;
+  for (let i = 0; i < 9; i++) {
+    const k = i / 9;
+    const x0 = xTop - wTop / 2 + wTop * k + wTop / 18;
+    const x1 = xBot - wBot / 2 + wBot * k + wBot / 18;
+    const off = (s.t * (240 + i * 30)) % (height * 0.5);
+    for (let seg = off - height * 0.5; seg < height; seg += height * 0.5) {
+      const t0 = Math.max(0, seg / height);
+      const t1 = Math.min(1, (seg + height * 0.16) / height);
+      if (t1 <= 0) continue;
+      ctx.beginPath();
+      ctx.moveTo(lerp(x0, x1, t0), topY + t0 * height);
+      ctx.lineTo(lerp(x0, x1, t1), topY + t1 * height);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+  // churn at the base
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < 5; i++) {
+    const fx = xBot - wBot / 2 + ((i + 0.5) / 5) * wBot;
+    const r = wBot * 0.16 * (1 + 0.3 * Math.sin(s.t * 3.4 + i * 1.9));
+    const fg = ctx.createRadialGradient(fx, botY, 0, fx, botY, r);
+    fg.addColorStop(0, `rgba(225,242,255,${0.4 * intensity})`);
+    fg.addColorStop(1, 'rgba(225,242,255,0)');
+    ctx.fillStyle = fg;
+    ctx.fillRect(fx - r, botY - r, r * 2, r * 2);
+  }
+  ctx.restore();
+}
