@@ -6,7 +6,7 @@ import type { SceneDef } from './scenes';
 import {
   type SceneCtx,
   boardedPlanks, bricks, clapboards, flames, flicker, fog, glow, grain,
-  lightShaft, mulberry32, ridge, shade, shingles, softShadow, stars, treeBand,
+  lightShaft, mulberry32, ridge, shade, shingles, softShadow, stalactites, stars, treeBand,
 } from './paint';
 
 // ---------------------------------------------------------------------------
@@ -1558,3 +1558,938 @@ export const hifiScenes: Record<string, SceneDef> = {
   kitchen,
   livingRoom,
 };
+
+// ---------------------------------------------------------------------------
+// UNDERGROUND CREATURE SCENES — troll room, cyclops lair, treasure room
+// ---------------------------------------------------------------------------
+
+interface RockPalette { deep: string; mid: string; near: string }
+
+/** faceted rock wall with strata cracks — shared cave backdrop */
+function rockWall(s: SceneCtx, seed: number, p: RockPalette) {
+  const { ctx, w, h } = s;
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, p.deep);
+  g.addColorStop(0.55, p.mid);
+  g.addColorStop(1, p.near);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  const rnd = mulberry32(seed);
+  // faceted slabs
+  for (let i = 0; i < 34; i++) {
+    const fx = rnd() * w;
+    const fy = rnd() * h * 0.85;
+    const fw = 30 + rnd() * 90;
+    const fh = 20 + rnd() * 60;
+    const tone = (rnd() - 0.5) * 0.14;
+    ctx.fillStyle = tone > 0 ? `rgba(210,190,220,${tone * 0.5})` : `rgba(5,2,10,${-tone})`;
+    ctx.beginPath();
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx + fw * (0.7 + rnd() * 0.3), fy + fh * 0.2 * rnd());
+    ctx.lineTo(fx + fw, fy + fh);
+    ctx.lineTo(fx + fw * 0.25 * rnd(), fy + fh * (0.75 + rnd() * 0.25));
+    ctx.closePath();
+    ctx.fill();
+  }
+  // cracks
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  for (let i = 0; i < 12; i++) {
+    ctx.lineWidth = 0.8 + rnd() * 1.4;
+    let cx2 = rnd() * w;
+    let cy2 = rnd() * h * 0.6;
+    ctx.beginPath();
+    ctx.moveTo(cx2, cy2);
+    for (let k = 0; k < 4; k++) {
+      cx2 += (rnd() - 0.5) * 46;
+      cy2 += 14 + rnd() * 30;
+      ctx.lineTo(cx2, cy2);
+    }
+    ctx.stroke();
+  }
+  stalactites(s, 'rgba(2,1,6,0.9)', seed + 5, h * 0.2, 20);
+}
+
+function caveFloor(s: SceneCtx, floorY: number, seed: number, base: string) {
+  const { ctx, w, h } = s;
+  const g = ctx.createLinearGradient(0, floorY, 0, h);
+  g.addColorStop(0, shade(base, 0.12));
+  g.addColorStop(1, shade(base, -0.5));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(0, floorY + 8);
+  const rnd = mulberry32(seed);
+  for (let x = 0; x <= w; x += w / 8) {
+    ctx.lineTo(x, floorY + (rnd() - 0.5) * 14);
+  }
+  ctx.lineTo(w, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  ctx.fill();
+  // rubble
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  for (let i = 0; i < 16; i++) {
+    const rx = rnd() * w;
+    const ry = floorY + 10 + rnd() * (h - floorY - 12);
+    ctx.beginPath();
+    ctx.ellipse(rx, ry, 3 + rnd() * 9, 2 + rnd() * 4, rnd(), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** a dark passage mouth with a jagged rim */
+function passageMouth(s: SceneCtx, cx: number, cy: number, rx: number, ry: number, seed: number, glowColor?: string) {
+  const { ctx } = s;
+  const rnd = mulberry32(seed);
+  ctx.fillStyle = '#020105';
+  ctx.beginPath();
+  const n = 12;
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const jag = 1 + (rnd() - 0.5) * 0.25;
+    const px = cx + Math.cos(a) * rx * jag;
+    const py = cy + Math.sin(a) * ry * jag;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  if (glowColor) glow(s, cx, cy, rx * 0.8, glowColor);
+}
+
+function bonesPile(s: SceneCtx, cx: number, cy: number, k: number, seed: number) {
+  const { ctx } = s;
+  const rnd = mulberry32(seed);
+  ctx.save();
+  ctx.strokeStyle = '#b8ab92';
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 7; i++) {
+    const a = rnd() * Math.PI;
+    const len = (14 + rnd() * 22) * k;
+    const bx = cx + (rnd() - 0.5) * 50 * k;
+    const by = cy + (rnd() - 0.5) * 14 * k;
+    ctx.lineWidth = (2.2 + rnd() * 1.4) * k;
+    ctx.beginPath();
+    ctx.moveTo(bx - (Math.cos(a) * len) / 2, by - (Math.sin(a) * len) / 4);
+    ctx.lineTo(bx + (Math.cos(a) * len) / 2, by + (Math.sin(a) * len) / 4);
+    ctx.stroke();
+    // knuckle ends
+    ctx.fillStyle = '#b8ab92';
+    for (const e of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(bx + (e * Math.cos(a) * len) / 2, by + (e * Math.sin(a) * len) / 4, 2.2 * k, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // a skull, watching nothing
+  ctx.fillStyle = '#c9bda3';
+  ctx.beginPath();
+  ctx.arc(cx + 18 * k, cy - 4 * k, 7.5 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(cx + 13 * k, cy - 1 * k, 9 * k, 6 * k);
+  ctx.fillStyle = '#0a0808';
+  ctx.beginPath();
+  ctx.arc(cx + 15.5 * k, cy - 5.5 * k, 1.9 * k, 0, Math.PI * 2);
+  ctx.arc(cx + 20.5 * k, cy - 5.5 * k, 1.9 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// THE TROLL ROOM
+// ---------------------------------------------------------------------------
+
+function drawTroll(s: SceneCtx, cx: number, gy: number, k: number) {
+  const { ctx } = s;
+  const breathe = Math.sin(s.t * 1.3) * 3 * k;
+  const sway = Math.sin(s.t * 0.7) * 4 * k;
+  const hide = '#3d4234';
+  const hideDark = '#262b1e';
+  const hideLit = '#565c46';
+
+  ctx.save();
+  ctx.translate(cx + sway, gy);
+
+  // legs — wide, braced stance
+  ctx.fillStyle = hideDark;
+  ctx.beginPath();
+  ctx.moveTo(-34 * k, 0);
+  ctx.quadraticCurveTo(-40 * k, -34 * k, -26 * k, -58 * k);
+  ctx.lineTo(-6 * k, -58 * k);
+  ctx.quadraticCurveTo(-16 * k, -30 * k, -18 * k, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(30 * k, 0);
+  ctx.quadraticCurveTo(38 * k, -34 * k, 24 * k, -58 * k);
+  ctx.lineTo(4 * k, -58 * k);
+  ctx.quadraticCurveTo(14 * k, -30 * k, 14 * k, 0);
+  ctx.closePath();
+  ctx.fill();
+  // clawed feet
+  ctx.fillStyle = hideDark;
+  for (const fx of [-26 * k, 22 * k]) {
+    ctx.beginPath();
+    ctx.ellipse(fx, -2 * k, 14 * k, 6 * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#d8ccb0';
+  for (const fx of [-26, 22]) {
+    for (let t2 = 0; t2 < 3; t2++) {
+      ctx.beginPath();
+      ctx.moveTo((fx - 10 + t2 * 8) * k, -3 * k);
+      ctx.lineTo((fx - 13 + t2 * 8) * k, 1 * k);
+      ctx.lineTo((fx - 7 + t2 * 8) * k, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // hunched torso
+  const tg = ctx.createLinearGradient(-40 * k, 0, 40 * k, 0);
+  tg.addColorStop(0, hideDark);
+  tg.addColorStop(0.55, hide);
+  tg.addColorStop(1, hideLit);
+  ctx.fillStyle = tg;
+  ctx.beginPath();
+  ctx.moveTo(-38 * k, -52 * k);
+  ctx.bezierCurveTo(-52 * k, -86 * k - breathe, -36 * k, -122 * k - breathe, 2 * k, -124 * k - breathe);
+  ctx.bezierCurveTo(38 * k, -122 * k - breathe, 52 * k, -90 * k - breathe, 38 * k, -52 * k);
+  ctx.quadraticCurveTo(0, -40 * k, -38 * k, -52 * k);
+  ctx.closePath();
+  ctx.fill();
+  // belly plate
+  ctx.fillStyle = '#5c5540';
+  ctx.beginPath();
+  ctx.ellipse(0, -72 * k - breathe * 0.5, 24 * k, 30 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(20,16,8,0.5)';
+  ctx.lineWidth = 1.5 * k;
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath();
+    ctx.arc(0, -72 * k - breathe * 0.5 + i * 8 * k - 16 * k, 22 * k, 0.4, Math.PI - 0.4);
+    ctx.stroke();
+  }
+  // ragged hide loincloth
+  ctx.fillStyle = '#4a3524';
+  ctx.beginPath();
+  ctx.moveTo(-30 * k, -56 * k);
+  for (let i = 0; i <= 6; i++) {
+    ctx.lineTo((-30 + i * 10) * k, (-56 + (i % 2) * 12) * k);
+  }
+  ctx.lineTo(26 * k, -40 * k);
+  ctx.lineTo(-30 * k, -40 * k);
+  ctx.closePath();
+  ctx.fill();
+
+  // left arm hanging, knuckles near the floor
+  ctx.fillStyle = hide;
+  ctx.beginPath();
+  ctx.moveTo(-34 * k, -104 * k - breathe);
+  ctx.bezierCurveTo(-58 * k, -96 * k, -62 * k, -50 * k, -56 * k, -18 * k);
+  ctx.lineTo(-42 * k, -16 * k);
+  ctx.bezierCurveTo(-46 * k, -52 * k, -38 * k, -84 * k, -26 * k, -98 * k - breathe);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = hideDark; // fist
+  ctx.beginPath();
+  ctx.ellipse(-50 * k, -14 * k, 11 * k, 9 * k, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // right arm raised with the axe
+  const armAng = -0.5 + Math.sin(s.t * 0.9) * 0.06;
+  ctx.save();
+  ctx.translate(30 * k, -108 * k - breathe);
+  ctx.rotate(armAng);
+  ctx.fillStyle = hideLit;
+  ctx.beginPath();
+  ctx.moveTo(-8 * k, -4 * k);
+  ctx.bezierCurveTo(18 * k, -18 * k, 40 * k, -14 * k, 52 * k, -2 * k);
+  ctx.lineTo(48 * k, 12 * k);
+  ctx.bezierCurveTo(34 * k, 2 * k, 16 * k, 2 * k, -2 * k, 12 * k);
+  ctx.closePath();
+  ctx.fill();
+  // the bloody axe
+  ctx.translate(52 * k, 2 * k);
+  ctx.rotate(-0.45);
+  ctx.fillStyle = '#241a16';
+  ctx.fillRect(-3.5 * k, -58 * k, 7 * k, 66 * k);
+  grain(s, -3.5 * k, -58 * k, 7 * k, 66 * k, 91, true, 0.2);
+  const axeG = ctx.createLinearGradient(-40 * k, -70 * k, 0, -40 * k);
+  axeG.addColorStop(0, '#7a828e');
+  axeG.addColorStop(1, '#3d434e');
+  ctx.fillStyle = axeG;
+  ctx.beginPath();
+  ctx.moveTo(-2 * k, -60 * k);
+  ctx.quadraticCurveTo(-38 * k, -64 * k, -44 * k, -38 * k);
+  ctx.quadraticCurveTo(-26 * k, -44 * k, -2 * k, -38 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(140,20,20,0.55)'; // old blood on the edge
+  ctx.beginPath();
+  ctx.moveTo(-44 * k, -38 * k);
+  ctx.quadraticCurveTo(-26 * k, -44 * k, -2 * k, -38 * k);
+  ctx.lineTo(-4 * k, -34 * k);
+  ctx.quadraticCurveTo(-26 * k, -40 * k, -42 * k, -34 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // head — underbite, tusks, ember eyes
+  const hy = -132 * k - breathe;
+  ctx.fillStyle = hide;
+  ctx.beginPath();
+  ctx.ellipse(4 * k, hy, 24 * k, 20 * k, 0.05, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = hideDark; // jaw
+  ctx.beginPath();
+  ctx.ellipse(6 * k, hy + 12 * k, 20 * k, 10 * k, 0.05, 0, Math.PI);
+  ctx.fill();
+  // tusks
+  ctx.fillStyle = '#e0d4b8';
+  for (const tx of [-8, 18]) {
+    ctx.beginPath();
+    ctx.moveTo((tx + 4) * k, hy + 14 * k);
+    ctx.quadraticCurveTo((tx + 1) * k, hy + 2 * k, (tx + 6) * k, hy + 2 * k);
+    ctx.lineTo((tx + 8) * k, hy + 12 * k);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // heavy brow
+  ctx.fillStyle = hideDark;
+  ctx.beginPath();
+  ctx.ellipse(2 * k, hy - 8 * k, 22 * k, 8 * k, 0.08, Math.PI, 0);
+  ctx.fill();
+  // ears
+  for (const ex of [-24, 30]) {
+    ctx.beginPath();
+    ctx.moveTo(ex * k, hy - 2 * k);
+    ctx.lineTo((ex + (ex < 0 ? -8 : 8)) * k, hy - 14 * k);
+    ctx.lineTo((ex + (ex < 0 ? 2 : -2)) * k, hy + 6 * k);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // ember eyes
+  const eyeGlow = 0.6 + 0.4 * Math.max(0, Math.sin(s.t * 1.9));
+  ctx.fillStyle = `rgba(255,90,40,${eyeGlow})`;
+  ctx.beginPath();
+  ctx.ellipse(-5 * k, hy - 4 * k, 3.4 * k, 2.4 * k, 0.2, 0, Math.PI * 2);
+  ctx.ellipse(14 * k, hy - 4 * k, 3.4 * k, 2.4 * k, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  glow(s, cx + sway + 4 * k, gy - 136 * k, 26 * k, `rgba(255,80,40,${0.18 * eyeGlow})`);
+  // lamplight rim from the passage side
+  ctx.save();
+  ctx.strokeStyle = 'rgba(190,210,255,0.16)';
+  ctx.lineWidth = 2 * k;
+  ctx.beginPath();
+  ctx.arc(cx + sway - 8 * k, gy - 90 * k, 48 * k, Math.PI * 0.75, Math.PI * 1.35);
+  ctx.stroke();
+  ctx.restore();
+}
+
+const trollRoomHifi: SceneDef = {
+  particles: [
+    { kind: 'dust', count: 12, hue: '#a89ab0' },
+    { kind: 'mist', count: 6, hue: 'rgba(120,60,60,0.4)' },
+  ],
+  paintBase(s) {
+    const { ctx, w, h } = s;
+    rockWall(s, 210, { deep: '#0c0710', mid: '#1c1219', near: '#2a1a1c' });
+    caveFloor(s, h * 0.82, 211, '#241318');
+    // passages: east (right), south (bottom-left), the forbidding hole west
+    passageMouth(s, w * 0.92, h * 0.62, w * 0.13, h * 0.22, 212);
+    passageMouth(s, w * 0.1, h * 0.86, w * 0.12, h * 0.12, 213);
+    passageMouth(s, w * 0.13, h * 0.5, w * 0.1, h * 0.14, 214, 'rgba(60,20,30,0.5)');
+    // deep claw gouges
+    for (const [gx, gy2, ga] of [[0.3, 0.3, 0.5], [0.68, 0.24, -0.4], [0.52, 0.42, 0.2]] as const) {
+      ctx.save();
+      ctx.translate(w * gx, h * gy2);
+      ctx.rotate(ga);
+      for (let i = 0; i < 3; i++) {
+        ctx.strokeStyle = 'rgba(8,4,8,0.8)';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(i * 10, 0);
+        ctx.quadraticCurveTo(i * 10 + 4, 30, i * 10 + 2, 58);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(190,170,190,0.14)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(i * 10 + 2.5, 2);
+        ctx.quadraticCurveTo(i * 10 + 6.5, 30, i * 10 + 4.5, 56);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // old bloodstains, dripping
+    const rnd = mulberry32(215);
+    for (const [bx, by2, br] of [[0.22, 0.6, 26], [0.6, 0.68, 34], [0.78, 0.36, 20]] as const) {
+      ctx.fillStyle = 'rgba(96,14,20,0.5)';
+      ctx.beginPath();
+      ctx.ellipse(w * bx, h * by2, br, br * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      for (let i = 0; i < 3; i++) {
+        const dx = w * bx + (rnd() - 0.5) * br * 1.4;
+        ctx.fillRect(dx, h * by2, 2, 14 + rnd() * 26);
+      }
+    }
+    bonesPile(s, w * 0.3, h * 0.9, 1, 216);
+    if (s.flags['trollDead']) {
+      // the abandoned axe where he fell
+      const ax = w * 0.55;
+      const ay = h * 0.9;
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(0.9);
+      ctx.fillStyle = '#241a16';
+      ctx.fillRect(-3, -44, 6, 52);
+      const axeG = ctx.createLinearGradient(-30, -52, 0, -30);
+      axeG.addColorStop(0, '#7a828e');
+      axeG.addColorStop(1, '#3d434e');
+      ctx.fillStyle = axeG;
+      ctx.beginPath();
+      ctx.moveTo(-2, -46);
+      ctx.quadraticCurveTo(-30, -50, -34, -28);
+      ctx.quadraticCurveTo(-20, -34, -2, -28);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      glow(s, ax - 12, ay - 38, 22, 'rgba(180,200,230,0.14)');
+    }
+  },
+  paint(s) {
+    const { w, h } = s;
+    if (!s.flags['trollDead']) {
+      // menacing pool of red beneath him
+      glow(s, w * 0.58, h * 0.7, w * 0.3, `rgba(160,40,30,${0.1 + 0.05 * flicker(s.t, 7)})`);
+      drawTroll(s, w * 0.58, h * 0.87, Math.min(w, 560) / 420);
+    } else {
+      // a thinning wisp of sinister black fog
+      const p = Math.min(1, s.t / 14);
+      if (p < 1) {
+        fog(s, h * 0.62, 70, `rgba(30,20,40,${0.5 * (1 - p)})`, 0.4, 5, 217);
+      }
+      glow(s, w * 0.5, h * 0.5, w * 0.3, 'rgba(90,110,160,0.06)');
+    }
+  },
+};
+
+// ---------------------------------------------------------------------------
+// THE CYCLOPS ROOM
+// ---------------------------------------------------------------------------
+
+function drawCyclops(s: SceneCtx, cx: number, gy: number, k: number, asleep: boolean) {
+  const { ctx } = s;
+  const breathe = Math.sin(s.t * (asleep ? 0.6 : 1.2)) * 6 * k;
+  const skin = '#6e5240';
+  const skinDark = '#4a3428';
+  const skinLit = '#8a6a50';
+
+  ctx.save();
+  ctx.translate(cx, gy);
+
+  if (asleep) ctx.translate(0, 30 * k); // slumped down against the wall
+
+  // legs folded / braced
+  ctx.fillStyle = skinDark;
+  ctx.beginPath();
+  ctx.ellipse(-30 * k, -20 * k, 46 * k, 22 * k, 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(38 * k, -18 * k, 40 * k, 20 * k, -0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // vast torso
+  const tg = ctx.createLinearGradient(-70 * k, 0, 70 * k, 0);
+  tg.addColorStop(0, skinDark);
+  tg.addColorStop(0.5, skin);
+  tg.addColorStop(1, skinLit);
+  ctx.fillStyle = tg;
+  ctx.beginPath();
+  ctx.moveTo(-64 * k, -24 * k);
+  ctx.bezierCurveTo(-80 * k, -90 * k - breathe, -52 * k, -150 * k - breathe, 0, -154 * k - breathe);
+  ctx.bezierCurveTo(54 * k, -150 * k - breathe, 78 * k, -86 * k - breathe, 62 * k, -22 * k);
+  ctx.quadraticCurveTo(0, -6 * k, -64 * k, -24 * k);
+  ctx.closePath();
+  ctx.fill();
+  // gut crease + navel
+  ctx.strokeStyle = 'rgba(30,18,12,0.45)';
+  ctx.lineWidth = 2.5 * k;
+  ctx.beginPath();
+  ctx.arc(0, -50 * k - breathe * 0.4, 40 * k, 0.5, Math.PI - 0.5);
+  ctx.stroke();
+  // fur wrap
+  ctx.fillStyle = '#3a2a1c';
+  ctx.beginPath();
+  ctx.moveTo(-58 * k, -34 * k);
+  for (let i = 0; i <= 8; i++) {
+    ctx.lineTo((-58 + i * 15) * k, (-34 + (i % 2) * 14) * k);
+  }
+  ctx.lineTo(58 * k, -10 * k);
+  ctx.lineTo(-58 * k, -10 * k);
+  ctx.closePath();
+  ctx.fill();
+
+  // arms
+  ctx.fillStyle = skin;
+  if (asleep) {
+    // draped over the belly
+    ctx.beginPath();
+    ctx.ellipse(-14 * k, -58 * k - breathe * 0.4, 52 * k, 15 * k, 0.24, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // one arm reaching, fingers working hungrily
+    ctx.fillStyle = skinLit;
+    ctx.strokeStyle = 'rgba(15,8,5,0.55)';
+    ctx.lineWidth = 2.5 * k;
+    ctx.beginPath();
+    ctx.moveTo(-52 * k, -120 * k - breathe);
+    ctx.bezierCurveTo(-100 * k, -112 * k, -116 * k, -66 * k, -104 * k, -30 * k);
+    ctx.lineTo(-82 * k, -28 * k);
+    ctx.bezierCurveTo(-92 * k, -66 * k, -74 * k, -98 * k, -40 * k, -108 * k - breathe);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // grasping hand
+    const fw = Math.sin(s.t * 2.3) * 3 * k;
+    ctx.fillStyle = skin;
+    ctx.beginPath();
+    ctx.ellipse(-94 * k, -26 * k, 15 * k, 12 * k, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    for (let f = 0; f < 3; f++) {
+      ctx.beginPath();
+      ctx.ellipse(-106 * k + f * 8 * k, -16 * k + fw * (f % 2 ? 1 : -1) * 0.4, 5 * k, 9 * k, 0.5 - f * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // head
+  const hy = -172 * k - breathe;
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.ellipse(0, hy, 34 * k, 30 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // scalp knot
+  ctx.fillStyle = skinDark;
+  ctx.beginPath();
+  ctx.ellipse(2 * k, hy - 26 * k, 12 * k, 7 * k, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  // jaw + lower lip
+  ctx.fillStyle = skinDark;
+  ctx.beginPath();
+  ctx.ellipse(0, hy + 20 * k, 24 * k, 12 * k, 0, 0, Math.PI);
+  ctx.fill();
+  if (!asleep) {
+    // hungry maw, slightly open
+    const jaw = 3 + Math.max(0, Math.sin(s.t * 0.8)) * 4;
+    ctx.fillStyle = '#2a0f10';
+    ctx.beginPath();
+    ctx.ellipse(0, hy + 18 * k, 15 * k, jaw * k, 0, 0, Math.PI);
+    ctx.fill();
+    ctx.fillStyle = '#e8dcc0';
+    for (let t2 = -2; t2 <= 2; t2++) {
+      ctx.beginPath();
+      ctx.moveTo(t2 * 6 * k - 2 * k, hy + 18 * k);
+      ctx.lineTo(t2 * 6 * k, hy + (18 + jaw * 0.7) * k);
+      ctx.lineTo(t2 * 6 * k + 2 * k, hy + 18 * k);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  // massive brow
+  ctx.fillStyle = skinDark;
+  ctx.beginPath();
+  ctx.ellipse(0, hy - 10 * k, 30 * k, 10 * k, 0, Math.PI, 0);
+  ctx.fill();
+  // THE eye
+  if (asleep) {
+    ctx.strokeStyle = '#2a180f';
+    ctx.lineWidth = 3 * k;
+    ctx.beginPath();
+    ctx.arc(0, hy - 2 * k, 13 * k, 0.25, Math.PI - 0.25);
+    ctx.stroke();
+    // lashes
+    for (let l = -1; l <= 1; l++) {
+      ctx.beginPath();
+      ctx.moveTo(l * 8 * k, hy + 9 * k);
+      ctx.lineTo(l * 9 * k, hy + 13 * k);
+      ctx.stroke();
+    }
+  } else {
+    const track = Math.sin(s.t * 0.5) * 4 * k; // the eye follows you
+    ctx.fillStyle = '#f3ead0';
+    ctx.beginPath();
+    ctx.ellipse(0, hy - 2 * k, 15 * k, 11 * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#b07830';
+    ctx.beginPath();
+    ctx.arc(track, hy - 2 * k, 6.5 * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#180c06';
+    ctx.beginPath();
+    ctx.arc(track, hy - 2 * k, 3 * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.beginPath();
+    ctx.arc(track - 2 * k, hy - 4.5 * k, 1.4 * k, 0, Math.PI * 2);
+    ctx.fill();
+    glow(s, track, hy - 2 * k, 26 * k, 'rgba(255,190,90,0.22)');
+  }
+  ctx.restore();
+
+  if (asleep) {
+    // drifting z's
+    const { ctx: c2 } = s;
+    c2.save();
+    c2.fillStyle = '#c8bcd8';
+    c2.font = `${Math.round(22 * k)}px Georgia, serif`;
+    for (let i = 0; i < 3; i++) {
+      const zt = (s.t * 0.4 + i * 0.33) % 1;
+      c2.globalAlpha = Math.sin(zt * Math.PI) * 0.55;
+      c2.fillText('z', cx + 60 * k + i * 20 * k + Math.sin(zt * 5 + i) * 6, gy - 170 * k - zt * 70 * k);
+    }
+    c2.restore();
+  }
+}
+
+const cyclopsHifi: SceneDef = {
+  particles: [{ kind: 'dust', count: 12, hue: '#c0a890' }],
+  paintBase(s) {
+    const { ctx, w, h } = s;
+    const fled = s.flags['cyclopsFled'];
+    rockWall(s, 230, { deep: '#100a0c', mid: '#221416', near: '#33201c' });
+    caveFloor(s, h * 0.84, 231, '#2a1a14');
+    // the stone staircase, rising to the right
+    ctx.fillStyle = '#1a1012';
+    ctx.beginPath();
+    ctx.moveTo(w * 0.68, h * 0.84);
+    ctx.lineTo(w * 1.02, h * 0.38);
+    ctx.lineTo(w * 1.02, h * 0.84);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(200,170,150,0.14)';
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 6; i++) {
+      const sx = w * (0.72 + i * 0.05);
+      const sy = h * (0.82 - i * 0.07);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(Math.min(w * 1.01, sx + w * 0.14), sy);
+      ctx.stroke();
+    }
+    // passage back to the maze, northwest
+    passageMouth(s, w * 0.08, h * 0.56, w * 0.1, h * 0.16, 232);
+    // gnawed bones everywhere — he likes people
+    bonesPile(s, w * 0.24, h * 0.92, 1.3, 233);
+    bonesPile(s, w * 0.52, h * 0.96, 1, 234);
+    if (fled) {
+      // the east wall is now a cyclops-shaped problem
+      ctx.fillStyle = '#050208';
+      ctx.beginPath();
+      ctx.moveTo(w * 0.64, h * 0.84);
+      ctx.lineTo(w * 0.6, h * 0.5);
+      ctx.lineTo(w * 0.66, h * 0.34);
+      ctx.lineTo(w * 0.76, h * 0.3);
+      ctx.lineTo(w * 0.84, h * 0.44);
+      ctx.lineTo(w * 0.8, h * 0.62);
+      ctx.lineTo(w * 0.86, h * 0.84);
+      ctx.closePath();
+      ctx.fill();
+      // rubble
+      const rnd = mulberry32(235);
+      for (let i = 0; i < 12; i++) {
+        ctx.fillStyle = shade('#3a2820', (rnd() - 0.5) * 0.3);
+        const rx = w * (0.6 + rnd() * 0.28);
+        const ry = h * (0.84 + rnd() * 0.1);
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(rx + 8 + rnd() * 14, ry - 4 - rnd() * 8);
+        ctx.lineTo(rx + 16 + rnd() * 10, ry + 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  },
+  paint(s) {
+    const { w, h } = s;
+    const fled = s.flags['cyclopsFled'];
+    const asleep = s.flags['cyclopsAsleep'];
+    if (fled) {
+      lightShaft(s, w * 0.73, w * 0.2, w * 0.7, w * 0.3, h * 0.9, 'rgba(255,220,160,0.1)', 1);
+      glow(s, w * 0.73, h * 0.55, w * 0.2, `rgba(255,210,140,${0.1 + 0.04 * Math.sin(s.t * 0.7)})`);
+    } else {
+      glow(s, w * 0.42, h * 0.5, w * 0.4, `rgba(200,120,60,${0.06 + 0.03 * flicker(s.t, 3)})`);
+      drawCyclops(s, w * 0.42, h * 0.9, Math.min(w, 560) / 400, !!asleep);
+    }
+  },
+};
+
+// ---------------------------------------------------------------------------
+// THE TREASURE ROOM
+// ---------------------------------------------------------------------------
+
+function goldHeap(s: SceneCtx, cx: number, cy: number, rx: number, ry: number, seed: number) {
+  const { ctx } = s;
+  const rnd = mulberry32(seed);
+  // mound
+  const g = ctx.createLinearGradient(0, cy - ry, 0, cy + ry);
+  g.addColorStop(0, '#a8742a');
+  g.addColorStop(1, '#4a2e0e');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // individual coins catching the light
+  for (let i = 0; i < 40; i++) {
+    const a = rnd() * Math.PI * 2;
+    const rr = Math.sqrt(rnd());
+    const px = cx + Math.cos(a) * rx * rr * 0.92;
+    const py = cy + Math.sin(a) * ry * rr * 0.85 - 2;
+    const cr = 1.6 + rnd() * 2.6;
+    ctx.fillStyle = shade('#d9a33c', (rnd() - 0.4) * 0.5);
+    ctx.beginPath();
+    ctx.ellipse(px, py, cr, cr * 0.55, rnd() * 0.6 - 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // a few gems
+  for (let i = 0; i < 5; i++) {
+    const px = cx + (rnd() - 0.5) * rx * 1.4;
+    const py = cy + (rnd() - 0.5) * ry;
+    const gc = ['#d94a6a', '#3ac98a', '#4a7ad9'][Math.floor(rnd() * 3)];
+    ctx.fillStyle = gc;
+    ctx.beginPath();
+    ctx.moveTo(px, py - 4);
+    ctx.lineTo(px + 3.5, py);
+    ctx.lineTo(px, py + 4);
+    ctx.lineTo(px - 3.5, py);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(px - 1, py - 2.5, 1.6, 1.6);
+  }
+}
+
+function drawThief(s: SceneCtx, cx: number, gy: number, k: number) {
+  const { ctx } = s;
+  const sway = Math.sin(s.t * 0.6) * 2 * k;
+  ctx.save();
+  ctx.translate(cx + sway, gy);
+  // his large bag, at his feet
+  ctx.fillStyle = '#2e2118';
+  ctx.beginPath();
+  ctx.moveTo(-46 * k, 0);
+  ctx.bezierCurveTo(-52 * k, -26 * k, -38 * k, -38 * k, -26 * k, -36 * k);
+  ctx.bezierCurveTo(-16 * k, -32 * k, -14 * k, -10 * k, -18 * k, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(200,170,120,0.3)';
+  ctx.lineWidth = 1.5 * k;
+  ctx.beginPath();
+  ctx.arc(-32 * k, -34 * k, 8 * k, Math.PI * 0.2, Math.PI * 0.9);
+  ctx.stroke();
+  // cloaked body, leaning
+  const cloak = ctx.createLinearGradient(-20 * k, 0, 24 * k, 0);
+  cloak.addColorStop(0, '#171220');
+  cloak.addColorStop(1, '#312840');
+  ctx.fillStyle = cloak;
+  ctx.beginPath();
+  ctx.moveTo(-14 * k, 0);
+  ctx.bezierCurveTo(-20 * k, -50 * k, -8 * k, -92 * k, 8 * k, -108 * k);
+  ctx.lineTo(20 * k, -102 * k);
+  ctx.bezierCurveTo(26 * k, -70 * k, 24 * k, -30 * k, 22 * k, 0);
+  ctx.closePath();
+  ctx.fill();
+  // hood, with darkness where a face should be
+  ctx.fillStyle = '#241c30';
+  ctx.beginPath();
+  ctx.ellipse(12 * k, -114 * k, 14 * k, 16 * k, 0.24, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#07050c';
+  ctx.beginPath();
+  ctx.ellipse(15 * k, -112 * k, 8 * k, 11 * k, 0.24, 0, Math.PI * 2);
+  ctx.fill();
+  // sharp chin catching lamplight
+  ctx.fillStyle = '#b09a84';
+  ctx.beginPath();
+  ctx.ellipse(17 * k, -105 * k, 4 * k, 3 * k, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  // arm with the stiletto, idly inspecting it
+  const wrist = Math.sin(s.t * 1.1) * 0.1;
+  ctx.save();
+  ctx.translate(20 * k, -72 * k);
+  ctx.rotate(-0.5 + wrist);
+  ctx.fillStyle = '#2a2138';
+  ctx.beginPath();
+  ctx.roundRect(0, -5 * k, 30 * k, 10 * k, 5 * k);
+  ctx.fill();
+  ctx.fillStyle = '#b09a84'; // hand
+  ctx.beginPath();
+  ctx.arc(32 * k, 0, 5 * k, 0, Math.PI * 2);
+  ctx.fill();
+  // the stiletto
+  ctx.fillStyle = '#d8dee8';
+  ctx.beginPath();
+  ctx.moveTo(35 * k, -2 * k);
+  ctx.lineTo(58 * k, -4 * k);
+  ctx.lineTo(37 * k, 2.5 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  // one boot forward
+  ctx.fillStyle = '#171220';
+  ctx.beginPath();
+  ctx.ellipse(4 * k, -2 * k, 12 * k, 5 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+const treasureHifi: SceneDef = {
+  particles: [
+    { kind: 'sparkle', count: 34, hue: '#ffe08a' },
+    { kind: 'dust', count: 10, hue: '#e8cc9a' },
+  ],
+  paintBase(s) {
+    const { ctx, w, h } = s;
+    rockWall(s, 240, { deep: '#170f08', mid: '#2a1c0c', near: '#3d2a10' });
+    caveFloor(s, h * 0.84, 241, '#33230e');
+    // sconce brackets (flames drawn live)
+    for (const sx of [w * 0.14, w * 0.86]) {
+      ctx.fillStyle = '#241a10';
+      ctx.beginPath();
+      ctx.moveTo(sx - 7, h * 0.4);
+      ctx.lineTo(sx + 7, h * 0.4);
+      ctx.lineTo(sx + 3, h * 0.34);
+      ctx.lineTo(sx - 3, h * 0.34);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillRect(sx - 2.5, h * 0.4, 5, h * 0.05);
+    }
+    // heaps of plunder
+    goldHeap(s, w * 0.26, h * 0.9, w * 0.19, h * 0.05, 242);
+    goldHeap(s, w * 0.72, h * 0.93, w * 0.23, h * 0.06, 243);
+    goldHeap(s, w * 0.5, h * 0.97, w * 0.2, h * 0.045, 244);
+    // discarded crumbling bags
+    const rnd = mulberry32(245);
+    for (const [bx, by2] of [[0.12, 0.94], [0.9, 0.88]] as const) {
+      ctx.fillStyle = '#33261a';
+      ctx.beginPath();
+      ctx.ellipse(w * bx, h * by2, 22 + rnd() * 8, 12, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(10,6,4,0.6)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(w * bx - 14, h * by2 - 8);
+      ctx.quadraticCurveTo(w * bx, h * by2 - 2, w * bx + 16, h * by2 - 9);
+      ctx.stroke();
+    }
+    // a crown, half-buried
+    ctx.fillStyle = '#e0b34a';
+    ctx.beginPath();
+    ctx.moveTo(w * 0.62, h * 0.9);
+    for (let i = 0; i < 4; i++) {
+      ctx.lineTo(w * 0.62 + i * 9 + 4.5, h * 0.9 - 10);
+      ctx.lineTo(w * 0.62 + (i + 1) * 9, h * 0.9);
+    }
+    ctx.lineTo(w * 0.62 + 36, h * 0.9 + 7);
+    ctx.lineTo(w * 0.62, h * 0.9 + 7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#c9344a';
+    ctx.beginPath();
+    ctx.arc(w * 0.62 + 18, h * 0.9 + 2, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // the silver chalice on its ornate stand
+    const cx = w * 0.5;
+    const cy = h * 0.66;
+    ctx.fillStyle = '#241708'; // stand column
+    ctx.beginPath();
+    ctx.moveTo(cx - 13, h * 0.84);
+    ctx.lineTo(cx - 8, cy + 12);
+    ctx.lineTo(cx + 8, cy + 12);
+    ctx.lineTo(cx + 13, h * 0.84);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#3a2a12';
+    ctx.fillRect(cx - 20, h * 0.84, 40, 6);
+    ctx.fillRect(cx - 12, cy + 8, 24, 5);
+    // chalice: bowl, stem, foot in bright silver
+    const sg = ctx.createLinearGradient(cx - 16, 0, cx + 16, 0);
+    sg.addColorStop(0, '#8a94a5');
+    sg.addColorStop(0.45, '#f2f7ff');
+    sg.addColorStop(1, '#6e7888');
+    ctx.fillStyle = sg;
+    ctx.beginPath(); // bowl
+    ctx.moveTo(cx - 15, cy - 34);
+    ctx.bezierCurveTo(cx - 15, cy - 16, cx - 7, cy - 10, cx, cy - 9);
+    ctx.bezierCurveTo(cx + 7, cy - 10, cx + 15, cy - 16, cx + 15, cy - 34);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath(); // lip
+    ctx.ellipse(cx, cy - 34, 15, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - 2.5, cy - 10, 5, 14); // stem
+    ctx.beginPath(); // knop
+    ctx.arc(cx, cy - 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath(); // foot
+    ctx.ellipse(cx, cy + 8, 11, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // engraved bands
+    ctx.strokeStyle = 'rgba(60,70,90,0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - 28, 13.5, 3, 0, 0, Math.PI);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - 20, 11, 2.5, 0, 0, Math.PI);
+    ctx.stroke();
+  },
+  paint(s) {
+    const { w, h } = s;
+    // sconce torchlight
+    for (const [sx, ph] of [[w * 0.14, 0], [w * 0.86, 3.1]] as const) {
+      flames(s, sx, h * 0.345, h * 0.02, ph, 0.9);
+      glow(s, sx, h * 0.32, w * 0.13, `rgba(255,150,60,${0.16 + 0.08 * flicker(s.t, ph)})`);
+    }
+    // hoard-glow breathing over everything
+    glow(s, w * 0.5, h * 0.9, w * 0.42, `rgba(255,190,80,${0.1 + 0.05 * flicker(s.t * 0.6, 8)})`);
+    // the chalice gleams
+    glow(s, w * 0.5, h * 0.62, 34, `rgba(225,240,255,${0.25 + 0.12 * Math.sin(s.t * 1.4)})`);
+    const gp = (s.t % 4.8) / 4.8;
+    if (gp < 0.16) {
+      glow(s, w * 0.5 - 12 + (gp / 0.16) * 24, h * 0.63, 10, `rgba(255,255,255,${Math.sin((gp / 0.16) * Math.PI) * 0.6})`);
+    }
+    if (!s.flags['thiefDead']) {
+      drawThief(s, w * 0.83, h * 0.87, Math.min(w, 560) / 430);
+      // the glint of a watched blade
+      const tp = (s.t % 3.4) / 3.4;
+      if (tp < 0.14) {
+        glow(s, w * 0.865, h * 0.71, 9, `rgba(230,240,255,${Math.sin((tp / 0.14) * Math.PI) * 0.7})`);
+      }
+    } else {
+      // his stiletto lies among the coins he loved
+      const { ctx } = s;
+      ctx.save();
+      ctx.translate(w * 0.8, h * 0.9);
+      ctx.rotate(0.3);
+      ctx.fillStyle = '#d8dee8';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(26, -2);
+      ctx.lineTo(2, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#2a2138';
+      ctx.fillRect(-10, -2.5, 10, 5);
+      ctx.restore();
+    }
+  },
+};
+
+Object.assign(hifiScenes, {
+  trollRoom: trollRoomHifi,
+  cyclops: cyclopsHifi,
+  treasure: treasureHifi,
+});
