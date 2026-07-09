@@ -93,10 +93,13 @@ export type SfxName =
   | 'die' | 'win' | 'step' | 'fail' | 'lamp' | 'grue'
   | 'splash' | 'rumble' | 'pray' | 'echo' | 'match' | 'thief';
 
+export type DeathCause = 'grue' | 'troll' | 'thief' | 'cyclops' | 'drowning';
+
 export interface TurnEffects {
   lines: OutputLine[];
   sfx: SfxName[];
   moved: boolean;
   died: boolean;
   won: boolean;
+  deathCause?: DeathCause;
 }

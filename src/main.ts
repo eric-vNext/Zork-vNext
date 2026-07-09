@@ -148,11 +148,20 @@ function sceneFlags(): Record<string, boolean | string> {
 
 let titleTimer: number | undefined;
 let lastSceneId = '';
+let deathScene = 'darkness';
+
+const DEATH_SCENES: Record<string, string> = {
+  grue: 'deathGrue',
+  troll: 'deathTroll',
+  thief: 'deathThief',
+  cyclops: 'deathCyclops',
+  drowning: 'deathDrowning',
+};
 
 function syncScene(roomChanged: boolean) {
   const lit = game.isLit();
   const victorious = game.state.won && game.state.room === 'livingRoom';
-  const sceneId = game.state.dead ? 'darkness' : victorious ? 'victory' : lit ? game.room.scene : 'darkness';
+  const sceneId = game.state.dead ? deathScene : victorious ? 'victory' : lit ? game.room.scene : 'darkness';
   renderer.setScene(sceneId, sceneFlags());
   renderer.updateFlags(sceneFlags());
   sound.setAmbience(game.state.dead ? 'maze' : game.room.ambience);
@@ -250,6 +259,9 @@ function submit(raw: string) {
   for (const line of fx.lines) print(line);
   for (const s of fx.sfx) sound.play(s);
   triggerImpacts(fx.sfx);
+  if (fx.died && fx.deathCause) {
+    deathScene = DEATH_SCENES[fx.deathCause] ?? 'darkness';
+  }
   if (/^(i|inv|inventory)$/i.test(text) && !game.state.dead) {
     showInventoryIcons();
   }

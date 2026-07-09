@@ -4,6 +4,7 @@ import {
   flames, flicker, torrent, waterPlane, rockFacets,
 } from './paint';
 import { hifiScenes } from './hifi';
+import { deathScenes } from './death';
 
 export interface ParticleSpec { kind: ParticleKind; count: number; hue?: string }
 export interface SceneDef {
@@ -1366,23 +1367,50 @@ export const sceneDefs: Record<string, SceneDef> = {
         [0, '#000000'],
         [1, '#050508'],
       ]);
-      // a pair of eyes blinks somewhere in the black
-      const cycle = (s.t % 7) / 7;
-      if (cycle > 0.72 && cycle < 0.9) {
-        const rnd = mulberry32(Math.floor(s.t / 7) * 13 + 5);
-        const x = s.w * (0.2 + rnd() * 0.6);
-        const y = s.h * (0.3 + rnd() * 0.4);
-        const blink = Math.min(1, Math.sin(((cycle - 0.72) / 0.18) * Math.PI) * 1.6);
-        s.ctx.fillStyle = `rgba(255,210,80,${0.8 * blink})`;
-        s.ctx.beginPath();
-        s.ctx.ellipse(x - 14, y, 6, 8 * blink, 0, 0, Math.PI * 2);
-        s.ctx.ellipse(x + 14, y, 6, 8 * blink, 0, 0, Math.PI * 2);
-        s.ctx.fill();
-        glow(s, x, y, 50, `rgba(255,180,60,${0.14 * blink})`);
+      const { ctx, w, h } = s;
+      // you never see a grue clearly — only motion that resolves into nothing
+      const cycle = (s.t % 8.5) / 8.5;
+      const seed = Math.floor(s.t / 8.5) * 17 + 5;
+      const rnd = mulberry32(seed);
+      const edge = rnd() > 0.5 ? -1 : 1; // it looms from a side, never dead-center
+      const x = w * (edge < 0 ? rnd() * 0.16 : 0.84 + rnd() * 0.16);
+      const y = h * (0.28 + rnd() * 0.44);
+      if (cycle > 0.7 && cycle < 0.86) {
+        // a mass darker than the darkness itself, there and gone
+        const p = (cycle - 0.7) / 0.16;
+        const loom = Math.sin(p * Math.PI);
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+        const r = w * (0.1 + loom * 0.22);
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(0,0,0,1)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+        // the barest glint — one frame's worth of attention, then gone
+        if (p > 0.35 && p < 0.55) {
+          const blink = Math.sin(((p - 0.35) / 0.2) * Math.PI);
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.fillStyle = `rgba(255,195,80,${0.55 * blink})`;
+          ctx.beginPath();
+          ctx.ellipse(x - 5 * edge, y, 2.5, 3.5 * blink, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
       }
+      // a low, unresolved unease breathing at the very edges of the frame
+      const breathe = 0.03 + 0.02 * Math.sin(s.t * 0.35);
+      const vg = ctx.createRadialGradient(w * 0.5, h * 0.5, h * 0.3, w * 0.5, h * 0.5, h * 0.75);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, `rgba(20,5,5,${breathe})`);
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, w, h);
     },
   },
 };
 
-// the high-fidelity set overrides/extends the registry
+// the high-fidelity and death-beat sets override/extend the registry
 Object.assign(sceneDefs, hifiScenes);
+Object.assign(sceneDefs, deathScenes);

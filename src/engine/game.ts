@@ -1,5 +1,5 @@
 import { parse, type ParsedCommand } from './parser';
-import type { Direction, GameState, ObjectDef, OutputLine, SfxName, TurnEffects } from './types';
+import type { DeathCause, Direction, GameState, ObjectDef, OutputLine, SfxName, TurnEffects } from './types';
 import { LAMP_LIFE, MAX_SCORE, START_ROOM, TREASURE_IDS, objects, rooms } from '../data/world';
 
 const SAVE_KEY = 'zork-vnext-save';
@@ -285,7 +285,7 @@ export class Game {
       if (this.floodTimer === 0) {
         this.state.flags['maintenanceFlooded'] = true;
         if (this.state.room === 'maintenance') {
-          this.kill(fx, 'The room fills completely with cold, dark water. Your last thought is that you probably should not have pressed that button.');
+          this.kill(fx, 'The room fills completely with cold, dark water. Your last thought is that you probably should not have pressed that button.', 'drowning');
           return;
         }
       }
@@ -295,7 +295,7 @@ export class Game {
     if (this.state.room === 'trollRoom' && !this.state.props['troll'].dead && rnd(0.3)) {
       say('The troll swings his axe at you and it nicks your arm!', 'danger');
       fx.sfx.push('hurt');
-      this.wound(fx);
+      this.wound(fx, 'troll');
       if (this.state.dead) return;
     }
 
@@ -303,7 +303,7 @@ export class Game {
     if (this.state.room === 'treasureRoom' && !this.state.props['thief'].dead && rnd(0.3)) {
       say('The thief slashes at you with his stiletto, grazing your shoulder!', 'danger');
       fx.sfx.push('hurt');
-      this.wound(fx);
+      this.wound(fx, 'thief');
       if (this.state.dead) return;
     }
 
@@ -317,7 +317,7 @@ export class Game {
       if (this.cyclopsTimer === 3) say('The cyclops seems somewhat agitated.', 'danger');
       if (this.cyclopsTimer === 5) say('The cyclops is moving about the room, looking for something. Probably a light snack. Probably you.', 'danger');
       if (this.cyclopsTimer >= 7) {
-        this.kill(fx, 'The cyclops, tired of all of your games and trickery, grabs you firmly. As he licks his chops, he says "Mmm. Just like Mom used to make ’em." It’s nice to be appreciated.');
+        this.kill(fx, 'The cyclops, tired of all of your games and trickery, grabs you firmly. As he licks his chops, he says "Mmm. Just like Mom used to make ’em." It’s nice to be appreciated.', 'cyclops');
         return;
       }
     } else {
@@ -329,7 +329,7 @@ export class Game {
     if (darkNow) {
       this.darkTurns++;
       if (wasDarkBefore && this.darkTurns >= 2 && rnd(0.35)) {
-        this.kill(fx, 'Oh, no! You have walked into the slavering fangs of a lurking grue!');
+        this.kill(fx, 'Oh, no! You have walked into the slavering fangs of a lurking grue!', 'grue');
         fx.sfx.push('grue');
         return;
       }
@@ -344,14 +344,14 @@ export class Game {
     }
   }
 
-  private wound(fx: TurnEffects) {
+  private wound(fx: TurnEffects, cause: 'troll' | 'thief') {
     this.wounds++;
     if (this.wounds >= 3) {
-      this.kill(fx, 'It appears that that last blow was too much for you. I’m afraid you are dead.');
+      this.kill(fx, 'It appears that that last blow was too much for you. I’m afraid you are dead.', cause);
     }
   }
 
-  private kill(fx: TurnEffects, message: string) {
+  private kill(fx: TurnEffects, message: string, cause: DeathCause) {
     fx.lines.push({ kind: 'danger', text: message });
     fx.lines.push({ kind: 'danger', text: '\n      ****  You have died  ****\n' });
     fx.lines.push({
@@ -361,6 +361,7 @@ export class Game {
     fx.sfx.push('die');
     this.state.dead = true;
     fx.died = true;
+    fx.deathCause = cause;
   }
 
   // ------------------------------------------------------------- dispatch
@@ -1215,7 +1216,7 @@ export class Game {
     if (!weapon) {
       say('Attacking the troll with your bare hands is suicidal. He laughs — a horrid, gurgling sound — and swings his axe.', 'danger');
       fx.sfx.push('hurt');
-      this.wound(fx);
+      this.wound(fx, 'troll');
       return;
     }
     fx.sfx.push('sword');
@@ -1237,7 +1238,7 @@ export class Game {
     if (rnd(0.4)) {
       say('The axe sweeps past as you jump aside — not quite fast enough. It grazes your ribs!', 'danger');
       fx.sfx.push('hurt');
-      this.wound(fx);
+      this.wound(fx, 'troll');
     }
   }
 
@@ -1250,7 +1251,7 @@ export class Game {
     if (!weapon) {
       say('The thief sidesteps your grasp with insulting ease and pricks your arm with his stiletto.', 'danger');
       fx.sfx.push('hurt');
-      this.wound(fx);
+      this.wound(fx, 'thief');
       return;
     }
     fx.sfx.push('sword');
@@ -1273,7 +1274,7 @@ export class Game {
     if (rnd(0.4)) {
       say('The stiletto flicks out like a serpent’s tongue and stings your shoulder!', 'danger');
       fx.sfx.push('hurt');
-      this.wound(fx);
+      this.wound(fx, 'thief');
     }
   }
 
