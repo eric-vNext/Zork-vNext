@@ -13,6 +13,7 @@ export class Game {
   state: GameState;
   private lastCommand: string | null = null;
   private wounds = 0;
+  private turnsSinceWound = 0;
   private trollHp = 2;
   private thiefHp = 2;
   private cyclopsTimer = 0;
@@ -345,12 +346,26 @@ export class Game {
     } else {
       this.darkTurns = 0;
     }
+
+    this.healWounds(fx);
   }
 
   private wound(fx: TurnEffects, cause: 'troll' | 'thief') {
     this.wounds++;
+    this.turnsSinceWound = 0;
     if (this.wounds >= 3) {
       this.kill(fx, 'It appears that that last blow was too much for you. I’m afraid you are dead.', cause);
+    }
+  }
+
+  /** wounds heal with rest, as diagnose has always claimed */
+  private healWounds(fx: TurnEffects) {
+    if (this.wounds <= 0) return;
+    this.turnsSinceWound++;
+    if (this.turnsSinceWound >= 20) {
+      this.turnsSinceWound = 0;
+      this.wounds--;
+      fx.lines.push({ kind: 'flavor', text: 'The ache in your bruises has faded — you feel a little steadier on your feet.' });
     }
   }
 
@@ -1537,6 +1552,7 @@ export class Game {
       const blob = JSON.stringify({
         state: this.state,
         wounds: this.wounds,
+        turnsSinceWound: this.turnsSinceWound,
         trollHp: this.trollHp,
         thiefHp: this.thiefHp,
         drainTimer: this.drainTimer,
@@ -1561,6 +1577,7 @@ export class Game {
       const data = JSON.parse(blob);
       this.state = data.state;
       this.wounds = data.wounds ?? 0;
+      this.turnsSinceWound = data.turnsSinceWound ?? 0;
       this.trollHp = data.trollHp ?? 2;
       this.thiefHp = data.thiefHp ?? 2;
       this.drainTimer = data.drainTimer ?? -1;
@@ -1579,6 +1596,7 @@ export class Game {
   restart(): TurnEffects {
     this.state = this.freshState();
     this.wounds = 0;
+    this.turnsSinceWound = 0;
     this.trollHp = 2;
     this.thiefHp = 2;
     this.cyclopsTimer = 0;
