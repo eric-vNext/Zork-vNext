@@ -59,6 +59,11 @@ export class Game {
     return rooms[this.state.room];
   }
 
+  /** 3 = unhurt, 0 = the wound that would have killed you */
+  get health(): number {
+    return Math.max(0, 3 - this.wounds);
+  }
+
   roomDesc(): string {
     const d = this.room.desc;
     return typeof d === 'function' ? d(this.state) : d;

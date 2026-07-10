@@ -51,6 +51,8 @@ const input = document.getElementById('cmd') as HTMLInputElement;
 const statusRoom = document.getElementById('status-room')!;
 const statusScore = document.getElementById('status-score')!;
 const statusMoves = document.getElementById('status-moves')!;
+const healthMeter = document.getElementById('health-meter')!;
+const healthFillClip = healthMeter.querySelector('.heart-fill-clip') as HTMLElement;
 const soundToggle = document.getElementById('sound-toggle') as HTMLButtonElement;
 const titleCard = document.getElementById('room-title-card')!;
 const roomTitle = document.getElementById('room-title')!;
@@ -158,6 +160,15 @@ const DEATH_SCENES: Record<string, string> = {
   drowning: 'deathDrowning',
 };
 
+function syncHealth() {
+  const health = game.health;
+  healthFillClip.style.clipPath = `inset(${(1 - health / 3) * 100}% 0 0 0)`;
+  healthMeter.dataset.health = String(health);
+  const label =
+    health >= 3 ? 'unhurt' : health === 2 ? 'lightly wounded' : health === 1 ? 'seriously wounded' : 'critical';
+  healthMeter.setAttribute('aria-label', `Health: ${label}`);
+}
+
 function syncScene(roomChanged: boolean, transitionColor?: string) {
   const lit = game.isLit();
   const victorious = game.state.won && game.state.room === 'livingRoom';
@@ -169,6 +180,7 @@ function syncScene(roomChanged: boolean, transitionColor?: string) {
   statusRoom.textContent = lit ? game.room.name : 'Darkness';
   statusScore.textContent = String(game.state.score);
   statusMoves.textContent = String(game.state.moves);
+  syncHealth();
 
   if (sceneId !== lastSceneId) {
     lastSceneId = sceneId;
