@@ -256,12 +256,13 @@ function colonialHouse(s: SceneCtx, o: HouseOpts): { chimX: number; chimY: numbe
     win(o.cx - 56 * k, upperY, ww, wh, 'boarded');
     win(o.cx + 37 * k, upperY, ww, wh, 'boarded');
     win(o.cx - 56 * k, lowerY, ww, wh, 'boarded');
-    // THE small kitchen window — your way in. Same frame size as every
-    // other window on the house; only the glass treatment differs.
+    // THE small kitchen window — your way in. Fills the lower-right slot
+    // of the same 2x2 grid as the boarded windows (mirrors the upper-right
+    // window's x, the lower-left window's y), same frame size throughout.
     const kw = ww;
     const kh = wh;
-    const kx = o.cx + 36.5 * k;
-    const ky = o.gy - 37 * k;
+    const kx = o.cx + 37 * k;
+    const ky = lowerY;
     win(kx, ky, kw, kh, 'lit');
     if (o.windowOpen) {
       // raised sash: a dark slot along the bottom
