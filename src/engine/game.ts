@@ -77,6 +77,7 @@ export class Game {
         const holder = where.slice(7);
         const hp = this.state.props[holder];
         const hDef = objects[holder];
+        if (!hp || !hDef) continue;
         const hLoc = this.state.loc[holder];
         if ((hp.open || hDef.transparent) && (hLoc === 'player' || hLoc === this.state.room)) return true;
       }
@@ -111,8 +112,10 @@ export class Game {
       } else if (where.startsWith('inside:')) {
         const holder = where.slice(7);
         const hDef = objects[holder];
+        const hProps = this.state.props[holder];
+        if (!hDef || !hProps) continue;
         const hLoc = this.state.loc[holder];
-        const visible = this.state.props[holder].open || hDef.transparent;
+        const visible = hProps.open || hDef.transparent;
         if (visible && (hLoc === 'player' || hLoc === this.state.room)) out.push(o);
       }
     }
@@ -1263,6 +1266,9 @@ export class Game {
         this.state.props['thief'].dead = true;
         this.state.loc['thief'] = 'nowhere';
         this.state.loc['stiletto'] = 'treasureRoom';
+        for (const o of Object.values(objects)) {
+          if (this.state.loc[o.id] === 'inside:thiefBag') this.state.loc[o.id] = 'treasureRoom';
+        }
         fx.sfx.push('thief');
         say('The thief staggers, makes a strangely formal little bow, and expires. His stiletto clatters to the floor beside his large bag. The treasures of his lair are yours.', 'flavor');
         return;
