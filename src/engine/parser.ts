@@ -48,6 +48,7 @@ const VERB_SYNONYMS: Record<string, string> = {
   light: 'light',
   extinguish: 'extinguish', douse: 'extinguish',
   wave: 'wave', brandish: 'wave',
+  wind: 'wind', crank: 'wind',
   tie: 'tie', attach: 'tie', fasten: 'tie',
   untie: 'untie',
   pray: 'pray',
@@ -136,6 +137,7 @@ export function parse(raw: string): ParsedCommand | null {
     rest = rest.slice(0, -1);
   }
   if (verb === 'move' && rest[0] === 'aside') rest = rest.slice(1);
+  if (verb === 'wind' && rest[0] === 'up') rest = rest.slice(1);
 
   if (verb === 'go' || verb === 'climb') {
     if (rest.length >= 1 && DIRECTIONS[rest[0]]) {

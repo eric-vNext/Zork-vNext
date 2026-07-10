@@ -805,6 +805,32 @@ export class Game {
         return;
       }
 
+      case 'wind': {
+        const o = needObj(p.dobj ?? 'canary', 'wind');
+        if (!o) return;
+        if (o.id !== 'canary') {
+          say(`Winding the ${o.name} accomplishes nothing.`, 'sys');
+          return;
+        }
+        if (this.state.loc['canary'] !== 'player') {
+          say('You aren’t holding the canary.', 'sys');
+          return;
+        }
+        if (this.state.room !== 'forestPath' && this.state.room !== 'upATree') {
+          say('You wind the canary. It chirps a tinny, mechanical song, but nothing else happens here.');
+          return;
+        }
+        if (this.state.flags['baubleDropped']) {
+          say('The canary chirps its tinny song again, but the songbird has already paid its visit today.');
+          return;
+        }
+        this.state.flags['baubleDropped'] = true;
+        this.state.loc['bauble'] = this.state.room;
+        say('You wind the canary, and it chirps a bright, tinny melody. A moment later a lovely songbird flits down from the branches, alights nearby, and answers with a sweet song of its own. Delighted, it drops something shiny at your feet before darting back into the leaves.', 'flavor');
+        sfx('treasure');
+        return;
+      }
+
       case 'tie': {
         const o = needObj(p.dobj, 'tie');
         if (!o) return;
@@ -1152,7 +1178,7 @@ export class Game {
     const o = needObj(p.dobj, 'open');
     if (!o) return;
 
-    if (o.id === 'egg') {
+    if (o.id === 'egg' && !this.state.props['egg'].open) {
       say('You have neither the tools nor the expertise. The clasp is delicate beyond anything you’ve seen, and you dare not force it.');
       return;
     }
@@ -1368,6 +1394,12 @@ export class Game {
       return;
     }
     if (target.id === 'thief') {
+      if (item.id === 'egg') {
+        this.state.loc['egg'] = `inside:thiefBag` as string;
+        this.state.props['egg'].open = true;
+        say('The thief’s eyes light up at the delicate clasp — a challenge worthy of his talents. His fingers work in a blur, and a moment later the egg hangs open in his hand, its contents undisturbed. He pockets it anyway, gratitude fading as quickly as it came.', 'flavor');
+        return;
+      }
       if (item.treasure) {
         this.state.loc[item.id] = `inside:thiefBag` as string;
         say('The thief examines it with the eye of a professional, is momentarily overcome with gratitude, and pockets it. His gratitude, like your treasure, quickly disappears.', 'flavor');
@@ -1594,6 +1626,26 @@ export class Game {
       this.drainTimer = data.drainTimer ?? -1;
       this.floodTimer = data.floodTimer ?? -1;
       this.darkTurns = 0;
+      // backfill any object added to the game since this save was made —
+      // an older save's loc/props won't have entries for it at all
+      for (const o of Object.values(objects)) {
+        if (!(o.id in this.state.loc)) this.state.loc[o.id] = o.start;
+        if (!(o.id in this.state.props)) {
+          this.state.props[o.id] = {
+            open: o.startOpen ?? false,
+            locked: o.startLocked ?? false,
+            lit: o.id === 'torch',
+            touched: false,
+            dead: false,
+          };
+        }
+      }
+      // the egg's "opened by the thief" state didn't exist in older saves;
+      // if it's still sitting in his bag (the only way it gets there), the
+      // give-it-to-him step already happened, so honor that retroactively
+      if (this.state.loc['egg'] === 'inside:thiefBag') {
+        this.state.props['egg'].open = true;
+      }
       rooms['maintenance'].dark = !this.state.flags['maintLights'];
       fx.lines.push({ kind: 'sys', text: 'Game restored.' });
       fx.lines.push(...this.describeRoom(true));
