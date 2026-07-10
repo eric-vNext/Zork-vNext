@@ -14,6 +14,7 @@ export class Game {
   private lastCommand: string | null = null;
   private wounds = 0;
   private turnsSinceWound = 0;
+  private meleeThisTurn = false;
   private trollHp = 2;
   private thiefHp = 2;
   private cyclopsTimer = 0;
@@ -192,6 +193,7 @@ export class Game {
     const fx: TurnEffects = { lines: [], sfx: [], moved: false, died: false, won: false };
     const say = (text: string, kind: OutputLine['kind'] = 'desc') => fx.lines.push({ kind, text });
     const sfx = (s: SfxName) => fx.sfx.push(s);
+    this.meleeThisTurn = false;
 
     if (this.state.dead) {
       const cmd = raw.trim().toLowerCase();
@@ -295,16 +297,18 @@ export class Game {
       }
     }
 
-    // lurking troll
-    if (this.state.room === 'trollRoom' && !this.state.props['troll'].dead && rnd(0.3)) {
+    // lurking troll — skip if we just traded blows with him this turn; fightTroll()
+    // already rolls its own counter-attack, so this would be a second, redundant hit
+    if (this.state.room === 'trollRoom' && !this.state.props['troll'].dead && !this.meleeThisTurn && rnd(0.3)) {
       say('The troll swings his axe at you and it nicks your arm!', 'danger');
       fx.sfx.push('hurt');
       this.wound(fx, 'troll');
       if (this.state.dead) return;
     }
 
-    // the thief does not appreciate visitors
-    if (this.state.room === 'treasureRoom' && !this.state.props['thief'].dead && rnd(0.3)) {
+    // the thief does not appreciate visitors — same deal, fightThief() already covers
+    // the risk of a turn spent trading blows with him
+    if (this.state.room === 'treasureRoom' && !this.state.props['thief'].dead && !this.meleeThisTurn && rnd(0.3)) {
       say('The thief slashes at you with his stiletto, grazing your shoulder!', 'danger');
       fx.sfx.push('hurt');
       this.wound(fx, 'thief');
@@ -1231,6 +1235,7 @@ export class Game {
       say('The troll is already quite dead. Beating a dead troll is considered bad form.', 'sys');
       return;
     }
+    this.meleeThisTurn = true;
     if (!weapon) {
       say('Attacking the troll with your bare hands is suicidal. He laughs — a horrid, gurgling sound — and swings his axe.', 'danger');
       fx.sfx.push('hurt');
@@ -1266,6 +1271,7 @@ export class Game {
       say('Enough. He is dead, and robbing corpses is his department.', 'sys');
       return;
     }
+    this.meleeThisTurn = true;
     if (!weapon) {
       say('The thief sidesteps your grasp with insulting ease and pricks your arm with his stiletto.', 'danger');
       fx.sfx.push('hurt');
