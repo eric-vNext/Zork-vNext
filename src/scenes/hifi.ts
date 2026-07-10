@@ -256,11 +256,12 @@ function colonialHouse(s: SceneCtx, o: HouseOpts): { chimX: number; chimY: numbe
     win(o.cx - 56 * k, upperY, ww, wh, 'boarded');
     win(o.cx + 37 * k, upperY, ww, wh, 'boarded');
     win(o.cx - 56 * k, lowerY, ww, wh, 'boarded');
-    // THE small kitchen window — your way in
-    const kw = 24 * k;
-    const kh = 20 * k;
-    const kx = o.cx + 34 * k;
-    const ky = o.gy - 34 * k;
+    // THE small kitchen window — your way in. Same frame size as every
+    // other window on the house; only the glass treatment differs.
+    const kw = ww;
+    const kh = wh;
+    const kx = o.cx + 36.5 * k;
+    const ky = o.gy - 37 * k;
     win(kx, ky, kw, kh, 'lit');
     if (o.windowOpen) {
       // raised sash: a dark slot along the bottom
