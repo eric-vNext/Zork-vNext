@@ -332,8 +332,13 @@ soundToggle.addEventListener('click', () => {
   soundToggle.classList.toggle('muted', sound.muted);
 });
 
-// first tap anywhere unlocks audio (browser autoplay policy)
+// first interaction anywhere unlocks audio (browser autoplay policy) — a tap
+// covers mobile, but desktop autofocuses the prompt, so someone typing their
+// first command straight away never fires pointerdown until they hit enter;
+// listen for the first keystroke too so ambience starts the moment they
+// start typing, not only once they've submitted something
 window.addEventListener('pointerdown', () => sound.unlock(), { once: true });
+window.addEventListener('keydown', () => sound.unlock(), { once: true });
 
 // ---------------------------------------------------------------- boot
 
